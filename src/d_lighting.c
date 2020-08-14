@@ -17,7 +17,7 @@ Mat4x4 dgnLightingCreateDirViewMat(Vec3 dir)
     return light_rot;
 }
 
-Mat4x4 dgnLightingCreateLightProjMat(Mat4x4 inv_view, Mat4x4 light_mat,
+Mat4x4 dgnLightingCreateLightProjMat(Mat4x4 inv_view, Mat4x4 light_view_mat,
         float width, float height, float fov, float near, float far, float near_pull)
 {
     float ratio = width / height;
@@ -64,7 +64,7 @@ Mat4x4 dgnLightingCreateLightProjMat(Mat4x4 inv_view, Mat4x4 light_mat,
         Vec4 vW = m3dMat4x4MulVec4(inv_view, frustum_corners[j]);
 
         // Transform the frustum coordinate from world to light space
-        frustum_corners_L[j] = m3dMat4x4MulVec4(light_mat, vW);
+        frustum_corners_L[j] = m3dMat4x4MulVec4(light_view_mat, vW);
 
         minX = fminf(minX, frustum_corners_L[j].x);
         maxX = fmaxf(maxX, frustum_corners_L[j].x);

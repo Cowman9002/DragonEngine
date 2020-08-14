@@ -12,10 +12,9 @@ varying float vClipSpacePosZ;
 
 uniform float uTime;
 
-uniform vec3 uColor;
+uniform vec3 uColor = vec3(1.0);
 uniform vec3 uCamPos;
 uniform sampler2D uTexture;
-uniform sampler2D uWaterDisp;
 uniform bool uHasTexture;
 uniform samplerCube uSkybox;
 uniform vec3 uLightDir = normalize(vec3(1.0));
@@ -130,6 +129,7 @@ float getShadowMultiplier(int cascade, float NdotL)
 	}*/
 	
 	float bias = mix(0.0003, 0.006, NdotL);
+	//float bias = 0.003;
 	
 	vec2 texelSize = 1.0 / textureSize(uShadowMap[cascade], 0);
 	
@@ -143,8 +143,8 @@ float getShadowMultiplier(int cascade, float NdotL)
 	}
 	light /= 9.0;*/
 	
-	int sample_size = 4;
-	float tile_size = 2;
+	int sample_size = 8;
+	float tile_size = 2.5;
 	
 	seed = mapped.xy * mapped.z;
 	for(int i = 0; i < sample_size; i++)

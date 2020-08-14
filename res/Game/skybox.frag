@@ -6,8 +6,8 @@ varying vec3 vTex;
 uniform samplerCube uTexture;
 uniform vec3 uSunDir = normalize(vec3(1, 1, 1));
 
-const vec3 sunColor = vec3(1.0, 1.0, 0.4);
-const vec3 rimColor = vec3(1.0f, -0.2f, -1.0);
+const vec3 sunColor = vec3(4.0, 4.0, 1.4);
+const vec3 rimColor = vec3(3.0f, -1.2f, -3.0);
 const float sunSize = 0.005;
 
 void main()

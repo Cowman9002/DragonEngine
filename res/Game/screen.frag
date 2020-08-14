@@ -4,13 +4,13 @@ out vec4 fragColor;
 varying vec2 vTex;
 
 uniform sampler2D uTexture;
-uniform bool uMul;
+uniform bool uSingle;
 
 void main()
 {
 	vec3 finalColor = texture2D(uTexture, vTex).rgb;
 	
-	if(uMul)
+	if(uSingle)
 	{
 		fragColor = vec4(vec3(finalColor.r), 1.0);
 	}

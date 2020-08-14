@@ -136,7 +136,7 @@ Mat4x4 dgnLightingCreateDirViewMat(Vec3 dir);
 Mat4x4 dgnLightingCreateLightSpaceMat(DgnShadowMap shadow);
 DgnTexture *dgnLightingCreateShadowMap(uint16_t width, uint16_t height, uint8_t light_type);
 
-Mat4x4 dgnLightingCreateLightProjMat(Mat4x4 inv_view, Mat4x4 light_mat,
+Mat4x4 dgnLightingCreateLightProjMat(Mat4x4 inv_view, Mat4x4 light_view_mat,
         float width, float height, float fov, float near, float far, float near_pull);
 
 /** ---------------- Collision Functions---------------- **/
