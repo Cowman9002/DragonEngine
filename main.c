@@ -1,6 +1,7 @@
 #include "src/DGNEngine/DGNEngine.h"
 
 #include <stdlib.h>
+#include <stdio.h>
 #include <string.h>
 #include <math.h>
 
@@ -16,25 +17,58 @@
 #define CASCADE_SPLIT_BLEND 0.5f
 
 #include "src/c_ordered_map.h"
+#include "src/c_linked_list.h"
+
+#include <MemLeaker/malloc.h>
 
 int main(int argc, char* argv[])
 {
+    LinkedList *list;
+    list = linkedListCreate();
+
+    int v = 0;
+    linkedListPushBack(list, &v, sizeof(v));
+    v = 1;
+    linkedListPushBack(list, &v, sizeof(v));
+    v = 2;
+    linkedListPushBack(list, &v, sizeof(v));
+    v = 3;
+    linkedListPushBack(list, &v, sizeof(v));
+
+    int c = linkedListGetCount(list);
+    for(int i = 0; i < c; i++)
+    {
+        printf("{%i, %i}\n", i, *(int*)linkedListAt(list, i));
+    }
+
+    linkedListDestroy(list);
+
+    printf("\n");
 
     OrderedMapS *map;
 
-    map = OrderedMapSCreate();
+    map = orderedMapSCreate();
 
-    int v = 3;
+    v = 5;
+    orderedMapSInsert(map, "E", &v, sizeof(v));
+    v = 4;
+    orderedMapSInsert(map, "A", &v, sizeof(v));
+    v = 3;
+    orderedMapSInsert(map, "C", &v, sizeof(v));
+    v = 2;
+    orderedMapSInsert(map, "B", &v, sizeof(v));
+    v = 1;
+    orderedMapSInsert(map, "D", &v, sizeof(v));
 
-    OrderedMapSInsert(map, "Monkey", &v, sizeof(v));
-
-    int c = OrderedMapSGetCount(map);
+    c = orderedMapSGetCount(map);
     for(int i = 0; i < c; i++)
     {
-        printf("{%s, %i}\n", OrderedMapSKeyAtIndex(map, i), OrderedMapSAtIndexI(map, i));
+        printf("{%s, %i}\n", orderedMapSKeyAtIndex(map, i), *(int*)orderedMapSAtIndex(map, i));
     }
 
-    OrderedMapSDestroy(map);
+    orderedMapSDestroy(map);
+
+    printMemUsage();
 
     return 0;
 
@@ -343,5 +377,5 @@ int main(int argc, char* argv[])
     dgnEngineTerminate();
 }
 
-//TODO make a linked list for ordered map
 //TODO make an ordered map
+//TODO finish linked list

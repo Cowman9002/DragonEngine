@@ -1,6 +1,7 @@
 #include <string.h>
 #include <math.h>
 #include <stdint.h>
+#include <stdio.h>
 #include <MemLeaker/malloc.h>
 
 typedef struct
@@ -19,7 +20,7 @@ typedef struct
 #define C_ORDERED_MAP_INTERNAL
 #include "c_ordered_map.h"
 
-OrderedMapS *OrderedMapSCreate()
+OrderedMapS *orderedMapSCreate()
 {
     OrderedMapS *res = malloc(sizeof(*res));
     res->elements = NULL;
@@ -28,27 +29,44 @@ OrderedMapS *OrderedMapSCreate()
     return res;
 }
 
-void OrderedMapSDestroy(OrderedMapS *map)
+void orderedMapSDestroy(OrderedMapS *map)
 {
     if(map == NULL) return;
     for(int i = 0; i < map->count; i++)
     {
-        MapElementS e = map->elements[i];
-        // free one char at a time
-        for(int j = 0; j < e.value_size; j++)
-        {
-            free(map->elements[i].value + j);
-        }
+        // FIXME This will eventually break
+        free(map->elements[i].value);
     }
+
+    free(map);
 }
 
-void OrderedMapSInsert(OrderedMapS *map, const char *key, void *value, size_t sizeof_value)
+void orderedMapSInsert(OrderedMapS *map, const char *key, void *value, size_t sizeof_value)
 {
     if(map == NULL) return;
 
+    /*if(map->count == 0)
+    {
+        map->elements = realloc(map->elements, sizeof(MapElementS));
+
+        map->elements[0] = element;
+        map->count++;
+    }
+    else if(map->count == 1)
+    {
+        int cmp = strcmp(key, map->elements[current_index].key);
+
+        map->elements = realloc(map->elements, sizeof(MapElementS) * 2);
+
+        map->elements[0] = element;
+        map->count++;
+    }*/
+
     size_t lower_bound = 0;
     size_t upper_bound = map->count;
+    upper_bound = upper_bound > 0 ? upper_bound - 1 : 0;
     size_t current_index = 0;
+    size_t neighbor_index = 0;
 
     MapElementS element;
     element.key = key;
@@ -60,59 +78,18 @@ void OrderedMapSInsert(OrderedMapS *map, const char *key, void *value, size_t si
         *(int8_t*)(element.value + i) = *(int8_t*)(value + i);
     }
 
-
-    element.value = value;
-
     // go to middle
-    //      if strcmp > 0 go to middle of first half
-    //      if strcmp < 0 go to middle of second half
-    //      if strcmp == 0 return void
+    // check two surrounding values
+    //      special cases for ends
     // repeat until bottom bound and top bound are the same
 
     while(1)
     {
         // ints always truncate, or floor for unsigned
-        if(lower_bound != map->count - 2 && upper_bound != map->count - 1 )
-        {
-            // average top and bottom bound to find midpoint
-            current_index = (lower_bound + upper_bound) / 2;
-        }
-        else
-        {
-            // avoids being stuck on (count - 1) and (count - 2)
-            current_index = map->count - 1;
-        }
+        // average top and bottom bound to find midpoint
+        current_index = (lower_bound + upper_bound) / 2;
+        neighbor_index = current_index + 1;
 
-        if(current_index >= map->count || current_index < 0) break;
-
-        int cmp = strcmp(key, map->elements[current_index].key);
-
-        if(cmp < 0) // key comes before midpoint
-        {
-            if(lower_bound == upper_bound) // break check
-            {
-                break;
-            }
-            upper_bound = current_index;
-        }
-        else if(cmp > 0) // key comes after midpoint
-        {
-            if(lower_bound == upper_bound) // break check
-            {
-                if(lower_bound == map->count - 1) // needs to be added after
-                {
-                    lower_bound = map->count;
-                    upper_bound = lower_bound;
-                }
-                break;
-            }
-
-            lower_bound = current_index;
-        }
-        else // key already exists
-        {
-            return;
-        }
     }
 
     // set the array at correct index to key-value pair
@@ -130,28 +107,28 @@ void OrderedMapSInsert(OrderedMapS *map, const char *key, void *value, size_t si
     map->count++;
 }
 
-void OrderedMapSInsertOrReplace(OrderedMapS *map, const char *key, void *value)
+void orderedMapSInsertOrReplace(OrderedMapS *map, const char *key, void *value)
 {
     if(map == NULL) return;
 }
 
-void OrderedMapSErase(OrderedMapS *map)
+void orderedMapSErase(OrderedMapS *map)
 {
     if(map == NULL) return;
 }
 
-void OrderedMapSClear(OrderedMapS *map)
+void orderedMapSClear(OrderedMapS *map)
 {
     if(map == NULL) return;
 }
 
-int OrderedMapSAtKeyI(OrderedMapS *map, const char *key)
+void *orderedMapSAtKey(OrderedMapS *map, const char *key)
 {
     if(map == NULL) return 0;
     return 0;
 }
 
-uint8_t OrderedMapSAtIndex_internal(OrderedMapS *map, size_t i, MapElementS *out_element)
+uint8_t orderedMapSAtIndex_internal(OrderedMapS *map, size_t i, MapElementS *out_element)
 {
     if(map == NULL) return 0;
 
@@ -165,23 +142,23 @@ uint8_t OrderedMapSAtIndex_internal(OrderedMapS *map, size_t i, MapElementS *out
     return 1;
 }
 
-int OrderedMapSAtIndexI(OrderedMapS *map, size_t i)
+void *orderedMapSAtIndex(OrderedMapS *map, size_t i)
 {
     MapElementS e;
 
-    if(OrderedMapSAtIndex_internal(map, i, &e))
+    if(orderedMapSAtIndex_internal(map, i, &e))
     {
-        return *(int *)e.value;
+        return e.value;
     }
 
     return 0;
 }
 
-const char *OrderedMapSKeyAtIndex(OrderedMapS *map, size_t i)
+const char *orderedMapSKeyAtIndex(OrderedMapS *map, size_t i)
 {
     MapElementS e;
 
-    if(OrderedMapSAtIndex_internal(map, i, &e))
+    if(orderedMapSAtIndex_internal(map, i, &e))
     {
         return e.key;
     }
@@ -189,7 +166,7 @@ const char *OrderedMapSKeyAtIndex(OrderedMapS *map, size_t i)
     return NULL;
 }
 
-size_t OrderedMapSGetCount(OrderedMapS *map)
+size_t orderedMapSGetCount(OrderedMapS *map)
 {
     if(map == NULL) return 0;
 
