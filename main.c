@@ -15,8 +15,29 @@
 #define SHADOW_NEAR 0.1f
 #define CASCADE_SPLIT_BLEND 0.5f
 
+#include "src/c_ordered_map.h"
+
 int main(int argc, char* argv[])
 {
+
+    OrderedMapS *map;
+
+    map = OrderedMapSCreate();
+
+    int v = 3;
+
+    OrderedMapSInsert(map, "Monkey", &v, sizeof(v));
+
+    int c = OrderedMapSGetCount(map);
+    for(int i = 0; i < c; i++)
+    {
+        printf("{%s, %i}\n", OrderedMapSKeyAtIndex(map, i), OrderedMapSAtIndexI(map, i));
+    }
+
+    OrderedMapSDestroy(map);
+
+    return 0;
+
     DgnWindow *window = NULL;
     dgnWindowCreate(&window, WINDOW_WIDTH, WINDOW_HEIGHT, "Platformer");
     ASSERT_RETURN(window != NULL);
@@ -97,6 +118,8 @@ int main(int argc, char* argv[])
     DgnShader *screen_shader = NULL;
     DgnShader *shadow_shader = NULL;
 
+    dgnShaderSetEconstI("NUM_CASCADES", CASCADE_COUNT);
+
     ASSERT_RETURN(level_mesh = dgnMeshLoad("res/game/test_level_1.obj", &level_mesh_count));
 
     ASSERT_RETURN(skybox_texture = dgnCubemapLoad(skybox_locations, DGN_TEX_WRAP_REPEAT, DGN_TEX_FILTER_TRILINEAR, DGN_TEX_STORAGE_SRGB));
@@ -132,14 +155,13 @@ int main(int argc, char* argv[])
         char j[1];
         itoa(i, j, 10);
 
-        //TODO: see if these can stack
-        strcpy(buff, "uLightMat["); strcat(buff, j); strcat(buff, "]");
+        strcat(strcat(strcpy(buff, "uLightMat["), j), "]");
         lit_u_light_mat[i] = dgnShaderGetUniformLoc(lit_shader, buff);
 
-        strcpy(buff, "uShadowMap["); strcat(buff, j); strcat(buff, "]");
+        strcat(strcat(strcpy(buff, "uShadowMap["), j), "]");
         lit_u_shadow_map[i] = dgnShaderGetUniformLoc(lit_shader, buff);
 
-        strcpy(buff, "uCascadeEnd["); strcat(buff, j); strcat(buff, "]");
+        strcat(strcat(strcpy(buff, "uCascadeEnd["), j), "]");
         lit_u_cascade_ends[i] = dgnShaderGetUniformLoc(lit_shader, buff);
     }
 
@@ -200,7 +222,7 @@ int main(int argc, char* argv[])
                                             dgnCameraGetInverseView(camera),
                                             shadow_cascades[i].view_mat,
                                             WINDOW_WIDTH, WINDOW_HEIGHT, 90 * TO_RADS,
-                                            cascade_depths[i], cascade_depths[i + 1], 5.0f);
+                                            cascade_depths[i], cascade_depths[i + 1], 15.0f);
         }
 
         /** ---------------- RENDER ---------------- **/
@@ -262,7 +284,10 @@ int main(int argc, char* argv[])
         dgnShaderUniformI(lit_u_texture, 0);
         for(int i = 0; i < level_mesh_count; i++)
         {
-            dgnRendererBindTexture(checker_textures[i], 0);
+            if(i < 4)
+            {
+                dgnRendererBindTexture(checker_textures[i], 0);
+            }
             dgnRendererBindMesh(level_mesh[i]);
             dgnRendererDrawMesh();
         }
@@ -317,3 +342,6 @@ int main(int argc, char* argv[])
     dgnWindowDestroy(window);
     dgnEngineTerminate();
 }
+
+//TODO make a linked list for ordered map
+//TODO make an ordered map

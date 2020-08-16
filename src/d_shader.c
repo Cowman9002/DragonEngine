@@ -207,3 +207,9 @@ void dgnShaderUniformM4x4(int32_t loc, Mat4x4 value)
 {
     glUniformMatrix4fv(loc, 1, GL_TRUE, value.m[0]);
 }
+
+//TODO Implement shader Econt values
+void dgnShaderSetEconstI(const char *name, int value)
+{
+
+}

@@ -185,6 +185,8 @@ void dgnShaderUniformV2(int32_t loc, Vec2 value);
 void dgnShaderUniformM3x3(int32_t loc, Mat3x3 value);
 void dgnShaderUniformM4x4(int32_t loc, Mat4x4 value);
 
+void dgnShaderSetEconstI(const char *name, int value);
+
 /** ---------------- Texture Functions ---------------- **/
 
 DgnTexture *dgnTextureCreate(
