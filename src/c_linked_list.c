@@ -102,7 +102,29 @@ void linkedListPushFront(LinkedList *list, void *value, size_t sizeof_value)
 
 void linkedListInsert(LinkedList *list, size_t location, void *value, size_t sizeof_value)
 {
+    if(list->count == 0)
+    {
+        linkedListPushFront(list, value, sizeof_value);
+        return;
+    }
 
+    if(list == NULL) return;
+
+    // create a new list element and set its next to location
+    ListElement *new_element = malloc(sizeof(*new_element));
+    new_element->next = getListElement_internal(list, location);
+    // set value in new element to value
+    new_element->value = malloc(sizeof_value);
+    new_element->value_size = sizeof_value;
+
+    for(size_t i = 0; i < sizeof_value; i++)
+    {
+        *(int8_t*)(new_element->value + i) = *(int8_t*)(value + i);
+    }
+
+    // get element before location in the list and set its next to new node
+    getListElement_internal(list, location - 1)->next = new_element;
+    list->count++;
 }
 
 void *linkedListAt(LinkedList *list, size_t location)

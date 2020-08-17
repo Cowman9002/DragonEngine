@@ -10,8 +10,9 @@ typedef void OrderedMapS;
 OrderedMapS *orderedMapSCreate();
 void orderedMapSDestroy(OrderedMapS *map);
 void orderedMapSInsert(OrderedMapS *map, const char *key, void *value, size_t sizeof_value);
-void orderedMapSInsertOrReplace(OrderedMapS *map, const char *key, void *value);
-void orderedMapSErase(OrderedMapS *map);
+void orderedMapSInsertOrReplace(OrderedMapS *map, const char *key, void *value, size_t sizeof_value);
+void orderedMapSEraseAtKey(OrderedMapS *map, const char *key);
+void orderedMapSEraseAtIndex(OrderedMapS *map, size_t i);
 void orderedMapSClear(OrderedMapS *map);
 
 void *orderedMapSAtKey(OrderedMapS *map, const char *key);

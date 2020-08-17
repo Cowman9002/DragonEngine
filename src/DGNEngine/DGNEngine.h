@@ -169,7 +169,7 @@ void dgnMeshDestroyArr(DgnMesh **meshes, uint16_t num_meshes);
 
 /** ---------------- Shader functions ---------------- **/
 
-DgnShader *dgnShaderCreate(const char* vertex_code, const char* geometry_code, const char* fragment_code);
+DgnShader *dgnShaderCreate(char* vertex_code, char* geometry_code, char* fragment_code);
 
 DgnShader *dgnShaderLoad(const char* vertex_path, const char* geometry_path, const char* fragment_path);
 

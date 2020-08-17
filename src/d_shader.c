@@ -5,9 +5,28 @@
 #include <string.h>
 #include <stdio.h>
 
-static uint32_t genShaderInternal(const char *data, uint16_t shader_type)
+#include "c_ordered_map.h"
+
+static OrderedMapS *s_econst_map;
+
+static uint32_t genShaderInternal(char *data, uint16_t shader_type)
 {
     if(data == NULL) return 0;
+
+    // go through each line
+    // check if first token is "econt" then:
+    // realloc data to required length
+    // change line to "const 'value type' 'variable name' = 'value from s_econst_map';
+
+    // tokenize line for special parsing
+    char *token = strtok(data, " \n");
+
+    while( token != NULL )
+    {
+        //use token
+        printf("%s\n", token);
+        token = strtok(NULL, " \n");
+    }
 
     glCall(uint32_t shader = glCreateShader(shader_type));
     glCall(glShaderSource(shader, 1, &data, NULL));
@@ -27,8 +46,15 @@ static uint32_t genShaderInternal(const char *data, uint16_t shader_type)
     return shader;
 }
 
-DgnShader *dgnShaderCreate(const char *vertex_code, const char *geometry_code, const char *fragment_code)
+DgnShader *dgnShaderCreate(char *vertex_code, char *geometry_code, char *fragment_code)
 {
+    DgnShader *res = malloc(sizeof(*res));
+
+    if(res == NULL)
+    {
+        return NULL;
+    }
+
     glCall(uint32_t program = glCreateProgram());
 
     uint32_t vertex   = genShaderInternal(vertex_code, GL_VERTEX_SHADER);
@@ -67,8 +93,6 @@ DgnShader *dgnShaderCreate(const char *vertex_code, const char *geometry_code, c
     glCall(glDeleteShader(geometry));
     glCall(glDeleteShader(fragment));
 
-    DgnShader *res = malloc(sizeof(*res));
-
     res->program = program;
 
     return res;
@@ -100,18 +124,13 @@ uint32_t fileToString(char **out_str, const char *filepath)
 
     *out_str = malloc(length);
 
-    for(int i = 0; i < length; i++)
-    {
-        (*out_str)[i] = '\0';
-    }
-
     char line[128];
     size_t offset = 0;
 
      while(fgets(line, 128, file) != NULL)
     {
         uint16_t line_length = strlen(line);
-        memcpy((*out_str) + offset, line, line_length);
+        memcpy((*out_str) + offset, line, line_length + 1);
         offset += line_length;
     }
 
@@ -211,5 +230,17 @@ void dgnShaderUniformM4x4(int32_t loc, Mat4x4 value)
 //TODO Implement shader Econt values
 void dgnShaderSetEconstI(const char *name, int value)
 {
+    orderedMapSInsertOrReplace(s_econst_map, name, &value, sizeof(value));
+}
 
+uint8_t dgnShaderInit_internal()
+{
+    s_econst_map = orderedMapSCreate();
+
+    return s_econst_map != NULL;
+}
+
+void dgnShaderTerm_internal()
+{
+    orderedMapSDestroy(s_econst_map);
 }

@@ -74,6 +74,9 @@ void cursor_position_callback_internal(GLFWwindow *window, double xpos, double y
 void mouse_button_callback_internal(GLFWwindow *window, int button, int action, int mods);
 void scroll_callback_internal(GLFWwindow *window, double xscroll, double yscroll);
 
+uint8_t dgnShaderInit_internal();
+void dgnShaderTerm_internal();
+
 #ifdef __DEBUG
 #include <stdio.h>
 

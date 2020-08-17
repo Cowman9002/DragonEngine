@@ -26,6 +26,8 @@ uint8_t dgnRendererInitialize()
     ASSERT_RETURN(genSkyboxMeshInternal());
     ASSERT_RETURN(genScreenMeshInternal());
 
+    ASSERT_RETURN(dgnShaderInit_internal());
+
     return DGN_TRUE;
 }
 
@@ -33,6 +35,8 @@ void dgnRendererTerminate()
 {
     dgnMeshDestroy(s_skybox_mesh);
     dgnShaderDestroy(s_skybox_shader);
+
+    dgnShaderTerm_internal();
 }
 
 void dgnRendererClear()
