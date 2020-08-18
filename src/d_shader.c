@@ -3,7 +3,7 @@
 
 #include <MemLeaker/malloc.h>
 #include <string.h>
-#include <stdio.h>
+#include <stdlib.h>
 
 #include "c_ordered_map.h"
 
@@ -12,21 +12,6 @@ static OrderedMapS *s_econst_map;
 static uint32_t genShaderInternal(char *data, uint16_t shader_type)
 {
     if(data == NULL) return 0;
-
-    // go through each line
-    // check if first token is "econt" then:
-    // realloc data to required length
-    // change line to "const 'value type' 'variable name' = 'value from s_econst_map';
-
-    // tokenize line for special parsing
-    char *token = strtok(data, " \n");
-
-    while( token != NULL )
-    {
-        //use token
-        printf("%s\n", token);
-        token = strtok(NULL, " \n");
-    }
 
     glCall(uint32_t shader = glCreateShader(shader_type));
     glCall(glShaderSource(shader, 1, &data, NULL));
@@ -125,10 +110,78 @@ uint32_t fileToString(char **out_str, const char *filepath)
     *out_str = malloc(length);
 
     char line[128];
+    char line_cpy[128];
     size_t offset = 0;
 
      while(fgets(line, 128, file) != NULL)
     {
+        char *token;
+        strcpy(line_cpy, line);
+
+        if((token = strtok(line_cpy, " ")) != NULL)
+        {
+            if(strcmp(token, "econst") == 0)
+            {
+                char name[64];
+                char type[16];
+
+                if((token = strtok(NULL, " ")) != NULL)
+                {
+                    strcpy(type, token);
+                }
+                if((token = strtok(NULL, " ")) != NULL)
+                {
+                    strcpy(name, token);
+                    char *sc = strchr(token, ';');
+                    if(sc != NULL)
+                    {
+                        name[sc - token] = '\0';
+                    }
+                }
+
+                void *mapped_value = orderedMapSAtKey(s_econst_map, name);
+                if(mapped_value == NULL)
+                {
+                    logError("UNDEFINED SHADER ECONST", name);
+                    return FILE_LOAD_ERROR;
+                }
+
+
+                size_t type_len = strlen(type);
+                size_t name_len = strlen(name);
+
+                size_t off = 0;
+
+                memcpy(line + off, "const ", 6);
+                off += 6;
+                memcpy(line + off, type, type_len);
+                off += type_len;
+                memcpy(line + off, " ", 1);
+                off += 1;
+                memcpy(line + off, name, name_len);
+                off += name_len;
+                memcpy(line + off, " = ", 3);
+                off += 3;
+
+                if(strcmp(type, "int") == 0)
+                {
+                    int value = *(int*)mapped_value;
+                    char str_value[16];
+                    itoa(value, str_value, 10);
+                    size_t value_len = strlen(str_value);
+                    memcpy(line + off, str_value, value_len);
+                    off += value_len;
+                }
+                else
+                {
+                    logError("UNSUPPORTED ECONST TYPE", type);
+                    return FILE_LOAD_ERROR;
+                }
+
+                memcpy(line + off, ";\n", 3);
+            }
+        }
+
         uint16_t line_length = strlen(line);
         memcpy((*out_str) + offset, line, line_length + 1);
         offset += line_length;
@@ -227,7 +280,6 @@ void dgnShaderUniformM4x4(int32_t loc, Mat4x4 value)
     glUniformMatrix4fv(loc, 1, GL_TRUE, value.m[0]);
 }
 
-//TODO Implement shader Econt values
 void dgnShaderSetEconstI(const char *name, int value)
 {
     orderedMapSInsertOrReplace(s_econst_map, name, &value, sizeof(value));

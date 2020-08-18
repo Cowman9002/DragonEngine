@@ -2,7 +2,7 @@
 
 layout (location = 0) out vec4 fragColor;
 
-const int NUM_CASCADES = 3;
+econst int NUM_CASCADES;
 
 varying vec3 vNorm;
 varying vec2 vTexCoords;
@@ -128,12 +128,12 @@ float getShadowMultiplier(int cascade, float NdotL)
 		light = 0.0;
 	}*/
 	
-	float bias = mix(0.0003, 0.006, NdotL);
+	float bias = max(0.01 * (1.0 - NdotL), 0.0005); 
 	//float bias = 0.003;
 	
 	vec2 texelSize = 1.0 / textureSize(uShadowMap[cascade], 0);
 	
-	/*for(int x = -1; x <= 1; ++x)
+	for(int x = -1; x <= 1; ++x)
 	{
 		for(int y = -1; y <= 1; ++y)
 		{
@@ -141,10 +141,13 @@ float getShadowMultiplier(int cascade, float NdotL)
 			light += currentDepth - bias > pcfDepth ? 0.0 : 1.0;           
 		}    
 	}
-	light /= 9.0;*/
+	light /= 9.0;
+	
+	/*float nearestDepth = texture2D(uShadowMap[cascade], mapped.xy).r; 
 	
 	int sample_size = 8;
-	float tile_size = 2.5;
+	float v = clamp((currentDepth - nearestDepth) / 3.0, 0.0, 1.0);
+	float tile_size = mix(1.0, 25.0, v);
 	
 	seed = mapped.xy * mapped.z;
 	for(int i = 0; i < sample_size; i++)
@@ -161,7 +164,7 @@ float getShadowMultiplier(int cascade, float NdotL)
 			light += currentDepth - bias > pcfDepth ? 0.0 : 1.0;  
 		}
 	}
-	light /= sample_size * sample_size;
+	light /= sample_size * sample_size;*/
 	
 	if(ls_pos.z > 1.0)
 	{	

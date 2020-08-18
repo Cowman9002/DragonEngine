@@ -14,7 +14,7 @@
 #define SHADOW_SIZE 1024
 #define SHADOW_FAR 40.0f
 #define SHADOW_NEAR 0.1f
-#define CASCADE_SPLIT_BLEND 0.5f
+#define CASCADE_SPLIT_BLEND 0.45f
 
 #include "src/c_ordered_map.h"
 #include "src/c_linked_list.h"
@@ -299,9 +299,9 @@ int main(int argc, char* argv[])
 
         dgnRendererDrawScreenTexture();
 
-        /*for(int i = 0; i < CASCADE_COUNT; i++)
+        for(int i = 0; i < CASCADE_COUNT; i++)
         {
-            float cc_inverse = 1.0f / 4;
+            float cc_inverse = 1.0f / 10;
 
             dgnShaderUniformB(screen_u_single, DGN_TRUE);
             dgnShaderUniformV2(screen_u_scale, (Vec2){cc_inverse, cc_inverse * (float)WINDOW_WIDTH / (float)WINDOW_HEIGHT});
@@ -311,7 +311,7 @@ int main(int argc, char* argv[])
             dgnRendererBindTexture(shadow_cascades[i].texture, 0);
 
             dgnRendererDrawScreenTexture();
-        }*/
+        }
 
         dgnWindowSwapBuffers(window);
     }
@@ -327,3 +327,6 @@ int main(int argc, char* argv[])
     dgnWindowDestroy(window);
     dgnEngineTerminate();
 }
+
+// collision start
+// audio start
