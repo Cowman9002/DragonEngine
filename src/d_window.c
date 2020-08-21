@@ -1,6 +1,8 @@
 #include "d_internal.h"
 #include "DGNEngine/DGNEngine.h"
 
+#include "d_defines.h"
+
 #include <stdio.h>
 
 #include <MemLeaker/malloc.h>

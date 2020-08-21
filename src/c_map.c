@@ -147,6 +147,7 @@ size_t orderedMapSGetCount(OrderedMapS *map)
 uint8_t orderedMapSAtKey_internal(OrderedMapS *map, const char *key, MapElementS *out_element, size_t *out_index)
 {
     if(map == NULL) return 0;
+    if(map->elements == NULL) return 0;
 
     size_t lower_bound = 0;
     size_t upper_bound = map->count;

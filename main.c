@@ -12,14 +12,14 @@
 
 #define CASCADE_COUNT 3
 #define SHADOW_SIZE 1024
-#define SHADOW_FAR 40.0f
+#define SHADOW_FAR 33.0f
 #define SHADOW_NEAR 0.1f
-#define CASCADE_SPLIT_BLEND 0.45f
+#define CASCADE_SPLIT_BLEND 0.5f
 
 #include "src/c_ordered_map.h"
 #include "src/c_linked_list.h"
 
-#include <MemLeaker/malloc.h>
+void updateCamera(DgnCamera *camera, DgnWindow *window, uint8_t controller);
 
 int main(int argc, char* argv[])
 {
@@ -38,13 +38,13 @@ int main(int argc, char* argv[])
     /** -------- CAMERA -------- **/
 
     DgnCamera camera;
-    camera.far_plane    = 100;
-    camera.near_plane   = 0.1;
-    camera.fov          = 90 * TO_RADS;
-    camera.height       = WINDOW_HEIGHT;
-    camera.width        = WINDOW_WIDTH;
-    camera.pos          = (Vec3){0.0f, 1.0f, 0.0f};
-    camera.rot          = (Quat){0.0f, 0.0f, 0.0f, 1.0f};
+    camera.frustum.far    = 100;
+    camera.frustum.near   = 0.1;
+    camera.frustum.fov          = 90 * TO_RADS;
+    camera.frustum.height       = WINDOW_HEIGHT;
+    camera.frustum.width        = WINDOW_WIDTH;
+    camera.pos                  = (Vec3){0.0f, 1.0f, 3.0f};
+    camera.rot                  = (Quat){0.0f, 0.0f, 0.0f, 1.0f};
 
     /** -------- SHADOW CASCADES -------- **/
 
@@ -76,7 +76,7 @@ int main(int argc, char* argv[])
 
     uint8_t screen_attachement = DGN_FRAMEBUFFER_COLOR;
     DgnTexture *screen_texture = dgnTextureCreate(NULL, WINDOW_WIDTH, WINDOW_HEIGHT, DGN_TEX_WRAP_CLAMP_TO_EDGE,
-                                                  DGN_TEX_FILTER_NEAREST, DGN_FALSE, DGN_TEX_STORAGE_RGBA, DGN_TEX_STORAGE_RGBA16F,
+                                                  DGN_TEX_FILTER_BILINEAR, DGN_FALSE, DGN_TEX_STORAGE_RGBA, DGN_TEX_STORAGE_RGBA16F,
                                                   DGN_DATA_TYPE_FLOAT);
     DgnFramebuffer *screen_framebuffer = dgnFramebufferCreate(&screen_texture, &screen_attachement, 1, DGN_FRAMEBUFFER_DEPTH);
 
@@ -94,9 +94,11 @@ int main(int argc, char* argv[])
 
     uint16_t level_mesh_count = 0;
     DgnMesh **level_mesh = NULL;
+    DgnMesh **ball_mesh = NULL;
 
     DgnTexture *skybox_texture = NULL;
     DgnTexture *checker_textures[4] = {NULL, NULL, NULL, NULL};
+    DgnTexture *ball_texture = NULL;
 
     DgnShader *skybox_shader = NULL;
     DgnShader *lit_shader = NULL;
@@ -106,14 +108,17 @@ int main(int argc, char* argv[])
     dgnShaderSetEconstI("NUM_CASCADES", CASCADE_COUNT);
 
     ASSERT_RETURN(level_mesh = dgnMeshLoad("res/game/test_level_1.obj", &level_mesh_count));
+    ASSERT_RETURN(ball_mesh = dgnMeshLoad("res/game/ball.obj", NULL));
 
     ASSERT_RETURN(skybox_texture = dgnCubemapLoad(skybox_locations, DGN_TEX_WRAP_REPEAT, DGN_TEX_FILTER_TRILINEAR, DGN_TEX_STORAGE_SRGB));
     ASSERT_RETURN(checker_textures[0] = dgnTextureLoad("res/game/checker1.png", DGN_TEX_WRAP_REPEAT, DGN_TEX_FILTER_TRILINEAR, DGN_TRUE, DGN_TEX_STORAGE_SRGB));
     ASSERT_RETURN(checker_textures[1] = dgnTextureLoad("res/game/checker2.png", DGN_TEX_WRAP_REPEAT, DGN_TEX_FILTER_TRILINEAR, DGN_TRUE, DGN_TEX_STORAGE_SRGB));
     ASSERT_RETURN(checker_textures[2] = dgnTextureLoad("res/game/checker3.png", DGN_TEX_WRAP_REPEAT, DGN_TEX_FILTER_TRILINEAR, DGN_TRUE, DGN_TEX_STORAGE_SRGB));
     ASSERT_RETURN(checker_textures[3] = dgnTextureLoad("res/game/checker4.png", DGN_TEX_WRAP_REPEAT, DGN_TEX_FILTER_TRILINEAR, DGN_TRUE, DGN_TEX_STORAGE_SRGB));
+    ASSERT_RETURN(ball_texture = dgnTextureLoad("res/game/checker5.png", DGN_TEX_WRAP_REPEAT, DGN_TEX_FILTER_TRILINEAR, DGN_TRUE, DGN_TEX_STORAGE_SRGB));
 
     ASSERT_RETURN(skybox_shader = dgnShaderLoad("res/game/skybox.vert", 0, "res/game/skybox.frag"));
+    //ASSERT_RETURN(lit_shader = dgnShaderLoad("res/game/shadow_viewer.vert", 0, "res/game/shadow_viewer.frag"));
     ASSERT_RETURN(lit_shader = dgnShaderLoad("res/game/lit.vert", 0, "res/game/lit.frag"));
     ASSERT_RETURN(screen_shader = dgnShaderLoad("res/game/screen.vert", 0, "res/game/screen.frag"));
     ASSERT_RETURN(shadow_shader = dgnShaderLoad("res/game/shadow.vert", 0, 0));
@@ -129,6 +134,9 @@ int main(int argc, char* argv[])
     int lit_u_skybox = dgnShaderGetUniformLoc(lit_shader, "uSkybox");
     int lit_u_light_dir = dgnShaderGetUniformLoc(lit_shader, "uLightDir");
     int lit_u_cam_pos = dgnShaderGetUniformLoc(lit_shader, "uCamPos");
+    int lit_u_specular = dgnShaderGetUniformLoc(lit_shader, "uShininess");
+    int lit_u_refl_shine = dgnShaderGetUniformLoc(lit_shader, "uReflectShininess");
+    int lit_u_metalness = dgnShaderGetUniformLoc(lit_shader, "uMetalness");
 
     int lit_u_light_mat[CASCADE_COUNT];
     int lit_u_shadow_map[CASCADE_COUNT];
@@ -158,6 +166,11 @@ int main(int argc, char* argv[])
     int shadow_u_model = dgnShaderGetUniformLoc(shadow_shader, "uModel");
     int shadow_u_light = dgnShaderGetUniformLoc(shadow_shader, "uLight");
 
+    uint8_t grounded = DGN_FALSE;
+    Vec3 gravity_vector = {0.0f, -9.81f, 0.0f};
+
+    Vec3 ball_pos = {0.0f, 1.0f, 0.0f};
+    Vec3 ball_velo = {0.0f, 10.0f, 0.0f};
 
     while(!dgnWindowShouldClose(window))
     {
@@ -165,49 +178,60 @@ int main(int argc, char* argv[])
 
         /** ---------------- UPDATE ---------------- **/
 
-        Vec3 sun_dir = m3dVec3Normalized(m3dQuatRotateVec3(m3dQuatAngleAxis(dgnEngineGetSeconds() / 30.0f, (Vec3){0.0f, 1.0f, 0.0f}),
-                                         (Vec3){-1.0f, -1.0f, -1.0f}));
+        //Vec3 sun_dir = m3dVec3Normalized(m3dQuatRotateVec3(m3dQuatAngleAxis(dgnEngineGetSeconds() / 200.0f, (Vec3){0.0f, 1.0f, 0.0f}),
+        //                                 (Vec3){-1.0f, -1.0f, -1.0f}));
+        Vec3 sun_dir = m3dVec3Normalized((Vec3){-1.0f, -3.0f, -1.0f});
+
+        /** -------- Ball -------- **/
+
+        DgnBoundingSphere ball_bounds;
+        ball_bounds.radius = 0.5f;
+        DgnBoundingBox floor_bounds;
+        floor_bounds.max = (Vec3){3.0f, 0.0f, 3.0f};
+        floor_bounds.min = (Vec3){-3.0f, -1.0f, -3.0f};
+
+        if(dgnInputGetGamepadButton(DGN_GAMEPAD_1, DGN_GAMEPAD_BUTTON_CROSS) && grounded)
+        {
+            ball_velo.y = 10;
+            grounded = DGN_FALSE;
+        }
+
+        Mat4x4 ball_transform = m3dMat4x4InitIdentity();
+
+        ball_velo = m3dVec3AddVec3(ball_velo, m3dVec3MulValue(gravity_vector, dgnWindowGetDelta(window)));
+
+        Vec3 ball_t_pos = m3dVec3AddVec3(ball_pos, m3dVec3MulValue(ball_velo, dgnWindowGetDelta(window)));
+        ball_bounds.center = ball_t_pos;
+
+        if(dgnCollisionBoxSphere(floor_bounds, ball_bounds).hit)
+        {
+            ball_t_pos = ball_pos;
+            ball_velo = (Vec3){0.0f, 0.0f, 0.0f};
+            grounded = DGN_TRUE;
+        }
+
+        ball_pos = ball_t_pos;
+
+        m3dMat4x4Translate(&ball_transform, ball_pos);
 
         /** -------- Camera -------- **/
 
-        float camera_rot_speed = PI * dgnWindowGetDelta(window);
-        float camera_move_speed = 3.0f * dgnWindowGetDelta(window);
-        Quat camera_rot_y;
-        Quat camera_rot_x;
-
-        camera_rot_y = m3dQuatAngleAxis(
-                        dgnInputGetGamepadAxis(DGN_GAMEPAD_1, DGN_GAMEPAD_AXIS_RIGHT_X, 0.1f) * camera_rot_speed,
-                        (Vec3){0.0f, -1.0f, 0.0f});
-
-        camera_rot_x = m3dQuatAngleAxis(
-                        dgnInputGetGamepadAxis(DGN_GAMEPAD_1, DGN_GAMEPAD_AXIS_RIGHT_Y, 0.1f) * camera_rot_speed,
-                        m3dQuatRotateVec3(camera.rot, (Vec3){-1.0f, 0.0f, 0.0f}));
-
-        camera.rot = m3dQuatMulQuat(m3dQuatMulQuat(camera_rot_y, camera_rot_x), camera.rot);
-
-        camera.pos = m3dVec3AddVec3(camera.pos,
-                                    m3dQuatRotateVec3(camera.rot, (Vec3){0.0f, 0.0f,
-                                    camera_move_speed * dgnInputGetGamepadAxis(DGN_GAMEPAD_1, DGN_GAMEPAD_AXIS_LEFT_Y, 0.1f)}));
-
-        camera.pos = m3dVec3AddVec3(camera.pos,
-                                    m3dQuatRotateVec3(camera.rot, (Vec3){
-                                    camera_move_speed * dgnInputGetGamepadAxis(DGN_GAMEPAD_1, DGN_GAMEPAD_AXIS_LEFT_X, 0.1f),
-                                    0.0f, 0.0f}));
-
+        updateCamera(&camera, window, DGN_TRUE);
         Mat4x4 vp_mat = m3dMat4x4MulMat4x4(dgnCameraGetProjection(camera),
                         m3dMat4x4FromMat3x3(m3dMat3x3FromMat4x4(dgnCameraGetView(camera))));
         //Mat4x4 vp_mat = dgnCameraGetProjection(camera);
 
         /** -------- Shadows -------- **/
 
+        DgnFrustum frustum = camera.frustum;
+
         for(int i = 0; i < CASCADE_COUNT; i++)
         {
+            frustum.near = cascade_depths[i];
+            frustum.far = cascade_depths[i + 1];
+
             shadow_cascades[i].view_mat = dgnLightingCreateDirViewMat(sun_dir);
-            shadow_cascades[i].proj_mat = dgnLightingCreateLightProjMat(
-                                            dgnCameraGetInverseView(camera),
-                                            shadow_cascades[i].view_mat,
-                                            WINDOW_WIDTH, WINDOW_HEIGHT, 90 * TO_RADS,
-                                            cascade_depths[i], cascade_depths[i + 1], 15.0f);
+            shadow_cascades[i].proj_mat = dgnLightingCreateLightProjMat(camera, shadow_cascades[i], frustum, 10.0f);
         }
 
         /** ---------------- RENDER ---------------- **/
@@ -233,6 +257,10 @@ int main(int argc, char* argv[])
                 dgnRendererBindMesh(level_mesh[i]);
                 dgnRendererDrawMesh();
             }
+
+            dgnShaderUniformM4x4(shadow_u_model, ball_transform);
+            dgnRendererBindMesh(ball_mesh[0]);
+            dgnRendererDrawMesh();
         }
         dgnFramebufferBind(0);
 
@@ -248,7 +276,6 @@ int main(int argc, char* argv[])
 
         dgnRendererBindShader(lit_shader);
 
-        dgnShaderUniformM4x4(lit_u_model, m3dMat4x4InitIdentity());
         dgnShaderUniformM4x4(lit_u_view, dgnCameraGetView(camera));
         dgnShaderUniformM4x4(lit_u_projection, dgnCameraGetProjection(camera));
         dgnShaderUniformV3(lit_u_light_dir, sun_dir);
@@ -265,8 +292,11 @@ int main(int argc, char* argv[])
         dgnRendererBindCubemap(skybox_texture, 15);
         dgnShaderUniformI(lit_u_skybox, 15);
 
+        dgnShaderUniformM4x4(lit_u_model, m3dMat4x4InitIdentity());
         dgnShaderUniformB(lit_u_has_texture, DGN_TRUE);
         dgnShaderUniformI(lit_u_texture, 0);
+        dgnShaderUniformF(lit_u_specular, 5.0f);
+        dgnShaderUniformF(lit_u_refl_shine, 0.1f);
         for(int i = 0; i < level_mesh_count; i++)
         {
             if(i < 4)
@@ -277,6 +307,17 @@ int main(int argc, char* argv[])
             dgnRendererDrawMesh();
         }
 
+        dgnShaderUniformB(lit_u_has_texture, DGN_TRUE);
+        dgnShaderUniformI(lit_u_texture, 0);
+        dgnRendererBindTexture(ball_texture, 0);
+        dgnShaderUniformF(lit_u_specular, 20.0f);
+        dgnShaderUniformF(lit_u_refl_shine, 0.7f);
+
+        dgnShaderUniformM4x4(lit_u_model, ball_transform);
+        dgnRendererBindMesh(ball_mesh[0]);
+        dgnRendererDrawMesh();
+
+        /** ---- SKYBOX ---- **/
         dgnRendererSetDepthTest(DGN_DEPTH_PASS_LEQUAL);
         dgnRendererBindShader(skybox_shader);
         dgnRendererBindCubemap(skybox_texture, 0);
@@ -286,8 +327,11 @@ int main(int argc, char* argv[])
 
         dgnRendererDrawSkybox();
 
+        /** ---- Screen quad ---- **/
+
         dgnFramebufferBind(0);
 
+        dgnRendererSetViewport(0, 0, WINDOW_WIDTH, WINDOW_HEIGHT);
         dgnRendererSetDepthTest(DGN_DEPTH_PASS_ALWAYS);
         dgnRendererBindShader(screen_shader);
 
@@ -317,8 +361,13 @@ int main(int argc, char* argv[])
     }
 
     dgnMeshDestroyArr(level_mesh, level_mesh_count);
+    dgnMeshDestroyArr(ball_mesh, 1);
 
     dgnTextureDestroy(skybox_texture);
+    dgnTextureDestroy(checker_textures[0]);
+    dgnTextureDestroy(checker_textures[1]);
+    dgnTextureDestroy(checker_textures[2]);
+    dgnTextureDestroy(checker_textures[3]);
 
     dgnShaderDestroy(skybox_shader);
     dgnShaderDestroy(lit_shader);
@@ -328,5 +377,83 @@ int main(int argc, char* argv[])
     dgnEngineTerminate();
 }
 
-// collision start
-// audio start
+
+uint8_t cam_lock = DGN_FALSE;
+
+void updateCamera(DgnCamera *camera, DgnWindow *window, uint8_t controller)
+{
+    float camera_rot_speed = PI * dgnWindowGetDelta(window);
+    float camera_move_speed = 3.0f * dgnWindowGetDelta(window);
+    Quat camera_rot_y;
+    Quat camera_rot_x;
+
+    if(controller)
+    {
+        camera_rot_y = m3dQuatAngleAxis(
+                        dgnInputGetGamepadAxis(DGN_GAMEPAD_1, DGN_GAMEPAD_AXIS_RIGHT_X, 0.1f) * camera_rot_speed,
+                        (Vec3){0.0f, -1.0f, 0.0f});
+
+        camera_rot_x = m3dQuatAngleAxis(
+                        dgnInputGetGamepadAxis(DGN_GAMEPAD_1, DGN_GAMEPAD_AXIS_RIGHT_Y, 0.1f) * camera_rot_speed,
+                        m3dQuatRotateVec3(camera->rot, (Vec3){-1.0f, 0.0f, 0.0f}));
+
+        camera->rot = m3dQuatMulQuat(m3dQuatMulQuat(camera_rot_y, camera_rot_x), camera->rot);
+
+        camera->pos = m3dVec3AddVec3(camera->pos,
+                                    m3dQuatRotateVec3(camera->rot, (Vec3){0.0f, 0.0f,
+                                    camera_move_speed * dgnInputGetGamepadAxis(DGN_GAMEPAD_1, DGN_GAMEPAD_AXIS_LEFT_Y, 0.1f)}));
+
+        camera->pos = m3dVec3AddVec3(camera->pos,
+                                m3dQuatRotateVec3(camera->rot, (Vec3){
+                                camera_move_speed * dgnInputGetGamepadAxis(DGN_GAMEPAD_1, DGN_GAMEPAD_AXIS_LEFT_X, 0.1f),
+                                0.0f, 0.0f}));
+    }
+    else
+    {
+        camera_rot_speed = PI * 0.004f;
+
+        // Mouse and keyboard
+        if(dgnInputGetKeyDown(DGN_KEY_ESCAPE))
+        {
+            cam_lock = !cam_lock;
+
+            if(cam_lock)
+            {
+                dgnWindowSetRawCursorMode(window, DGN_TRUE);
+                dgnWindowSetCursorMode(window, DGN_CURSOR_DISABLED);
+            }
+            else
+            {
+                dgnWindowSetRawCursorMode(window, DGN_FALSE);
+                dgnWindowSetCursorMode(window, DGN_CURSOR_NORMAL);
+            }
+        }
+
+        if(cam_lock)
+        {
+            camera_rot_y = m3dQuatAngleAxis(
+                        dgnInputGetMouseXDelta() * camera_rot_speed,
+                        (Vec3){0.0f, -1.0f, 0.0f});
+
+            camera_rot_x = m3dQuatAngleAxis(
+                        dgnInputGetMouseYDelta() * camera_rot_speed,
+                        m3dQuatRotateVec3(camera->rot, (Vec3){-1.0f, 0.0f, 0.0f}));
+            camera->rot = m3dQuatMulQuat(m3dQuatMulQuat(camera_rot_y, camera_rot_x), camera->rot);
+        }
+
+
+        camera->pos = m3dVec3AddVec3(camera->pos,
+                                    m3dQuatRotateVec3(camera->rot, (Vec3){0.0f, 0.0f,
+                                    camera_move_speed * (dgnInputGetKey(DGN_KEY_S) - dgnInputGetKey(DGN_KEY_W))}));
+
+        camera->pos = m3dVec3AddVec3(camera->pos,
+                                    m3dQuatRotateVec3(camera->rot, (Vec3){
+                                    camera_move_speed * (dgnInputGetKey(DGN_KEY_D) - dgnInputGetKey(DGN_KEY_A)),
+                                    0.0f, 0.0f}));
+    }
+}
+
+//TODO: debug viewing tools: wire frame; wire box; wire sphere
+//TODO: audio start
+//TODO: triangle collision
+//TODO: variance shadow mapping, screen space soft shadows?

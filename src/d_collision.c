@@ -4,9 +4,9 @@
 #include <float.h>
 #include <math.h>
 
-DgnAABB dgnCollisionGenerateAABB(Vec3 *points, size_t points_count)
+DgnBoundingBox dgnCollisionGenerateBox(Vec3 *points, size_t points_count)
 {
-    DgnAABB res;
+    DgnBoundingBox res;
 
     if(points_count == 0)
     {
@@ -39,22 +39,111 @@ DgnAABB dgnCollisionGenerateAABB(Vec3 *points, size_t points_count)
     return res;
 }
 
-Vec3 dgnCollisionAABBGetCenter(DgnAABB aabb)
+DgnBoundingSphere dgnCollisionGenerateSphere(Vec3 *points, size_t points_count)
 {
-    return m3dVec3DivValue(m3dVec3AddVec3(aabb.max, aabb.min), 2.0f);
+    DgnBoundingSphere res;
+
+    Vec3 points_summed = {0.0f, 0.0f, 0.0f};
+    float d = -FLT_MAX;
+
+    for(int i = 0; i < points_count; i++)
+    {
+        points_summed = m3dVec3AddVec3(points_summed, points[i]);
+        for(int j = 0; j < i; j++)
+        {
+            float dist = m3dVec3Distance(points[i], points[j]);
+            d = fmaxf(dist, d);
+        }
+    }
+
+    res.radius = d / 2.0f;
+    res.center = m3dVec3DivValue(points_summed, points_count);
+
+    return res;
 }
 
-DgnCollisionData dgnCollisionAABBPoint(DgnAABB aabb, Vec3 point)
+DgnBoundingSphere dgnCollisionSphereFromBox(DgnBoundingBox box)
+{
+    DgnBoundingSphere res;
+    res.center = dgnCollisionBoxGetCenter(box);
+    res.radius = m3dVec3Length(m3dVec3SubVec3(box.max, res.center));
+
+    return res;
+}
+
+DgnCollisionData dgnCollisionBoxPoint(DgnBoundingBox box, Vec3 point)
 {
     DgnCollisionData res;
     res.hit = DGN_FALSE;
 
-    if(point.x > aabb.min.x && point.x < aabb.max.x &&
-       point.y > aabb.min.y && point.y < aabb.max.y &&
-       point.z > aabb.min.z && point.z < aabb.max.z)
+    if(point.x > box.min.x && point.x < box.max.x &&
+       point.y > box.min.y && point.y < box.max.y &&
+       point.z > box.min.z && point.z < box.max.z)
        {
            res.hit = DGN_TRUE;
        }
 
     return res;
+}
+
+DgnCollisionData dgnCollisionBoxBox(DgnBoundingBox a, DgnBoundingBox b)
+{
+    DgnCollisionData res;
+    res.hit = DGN_FALSE;
+
+    if(a.min.x <= b.max.x && a.max.x >= b.min.x &&
+       a.min.y <= b.max.y && a.max.y >= b.min.y &&
+       a.min.z <= b.max.z && a.max.z >= b.min.z)
+       {
+           res.hit = DGN_TRUE;
+       }
+
+    return res;
+}
+DgnCollisionData dgnCollisionBoxSphere(DgnBoundingBox box, DgnBoundingSphere sphere)
+{
+    DgnCollisionData res;
+    res.hit = DGN_FALSE;
+
+    // get box closest point to sphere center by clamping
+    Vec3 nearest_point;
+    nearest_point.x = fmaxf(box.min.x, fminf(sphere.center.x, box.max.x));
+    nearest_point.y = fmaxf(box.min.y, fminf(sphere.center.y, box.max.y));
+    nearest_point.z = fmaxf(box.min.z, fminf(sphere.center.z, box.max.z));
+
+    // this is the same as isPointInsideSphere
+    float dist = m3dVec3Distance(sphere.center, nearest_point);
+
+    res.hit = dist <= sphere.radius;
+
+    return res;
+}
+
+DgnCollisionData dgnCollisionSphereSphere(DgnBoundingSphere a, DgnBoundingSphere b)
+{
+    DgnCollisionData res;
+    res.hit = DGN_FALSE;
+
+    float dist = m3dVec3Distance(a.center, b.center);
+
+    res.hit = dist <= (a.radius + b.radius);
+
+    return res;
+}
+
+DgnCollisionData dgnCollisionSpherePoint(DgnBoundingSphere sphere, Vec3 point)
+{
+    DgnCollisionData res;
+    res.hit = DGN_FALSE;
+
+    float dist = m3dVec3Distance(sphere.center, point);
+
+    res.hit = dist <= sphere.radius;
+
+    return res;
+}
+
+Vec3 dgnCollisionBoxGetCenter(DgnBoundingBox box)
+{
+    return m3dVec3DivValue(m3dVec3AddVec3(box.max, box.min), 2.0f);
 }

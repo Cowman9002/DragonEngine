@@ -25,21 +25,30 @@ typedef struct
 
 typedef struct
 {
-    Vec3 pos;
-    Quat rot;
-
-    float width;
-    float height;
-    float fov;
-    float near_plane;
-    float far_plane;
-}DgnCamera;
+    Vec3 max;
+    Vec3 min;
+}DgnBoundingBox;
 
 typedef struct
 {
-    Vec3 max;
-    Vec3 min;
-}DgnAABB;
+    Vec3 center;
+    float radius;
+}DgnBoundingSphere;
+
+typedef struct
+{
+    float fov;
+    float near, far;
+    float width, height;
+}DgnFrustum;
+
+typedef struct
+{
+    Vec3 pos;
+    Quat rot;
+
+    DgnFrustum frustum;
+}DgnCamera;
 
 typedef struct
 {
@@ -59,9 +68,9 @@ uint8_t dgnInputGetKey(uint16_t key);
 uint8_t dgnInputGetKeyDown(uint16_t key);
 uint8_t dgnInputGetKeyUp(uint16_t key);
 
-uint8_t dgnInputGetMouseButton(uint16_t button);
-uint8_t dgnInputGetMouseButtonDown(uint16_t button);
-uint8_t dgnInputGetMouseButtonUp(uint16_t button);
+uint8_t dgnInputGetMouseButton(uint8_t button);
+uint8_t dgnInputGetMouseButtonDown(uint8_t button);
+uint8_t dgnInputGetMouseButtonUp(uint8_t button);
 
 int32_t dgnInputGetMouseX();
 int32_t dgnInputGetMouseY();
@@ -86,7 +95,6 @@ uint16_t dgnWindowGetHeight(DgnWindow *window);
 const char* dgnWindowGetTitle(DgnWindow *window);
 uint64_t dgnWindowGetFrameCount(DgnWindow *window);
 double dgnWindowGetDelta(DgnWindow *window);
-
 
 void dgnWindowSetRawCursorMode(DgnWindow *window, uint8_t enabled);
 void dgnWindowSetCursorMode(DgnWindow *window, uint32_t cursor_mode);
@@ -136,16 +144,22 @@ Mat4x4 dgnLightingCreateDirViewMat(Vec3 dir);
 Mat4x4 dgnLightingCreateLightSpaceMat(DgnShadowMap shadow);
 DgnTexture *dgnLightingCreateShadowMap(uint16_t width, uint16_t height, uint8_t light_type);
 
-Mat4x4 dgnLightingCreateLightProjMat(Mat4x4 inv_view, Mat4x4 light_view_mat,
-        float width, float height, float fov, float near, float far, float near_pull);
+Mat4x4 dgnLightingCreateLightProjMat(DgnCamera cam, DgnShadowMap shadow, DgnFrustum frustum, float near_pull);
 
 /** ---------------- Collision Functions---------------- **/
 
-DgnAABB dgnCollisionGenerateAABB(Vec3 *points, size_t points_count);
+DgnBoundingBox dgnCollisionGenerateBox(Vec3 *points, size_t points_count);
+DgnBoundingSphere dgnCollisionGenerateSphere(Vec3 *points, size_t points_count);
 
-Vec3 dgnCollisionAABBGetCenter(DgnAABB aabb);
+DgnBoundingSphere dgnCollisionSphereFromBox(DgnBoundingBox box);
 
-DgnCollisionData dgnCollisionAABBPoint(DgnAABB aabb, Vec3 point);
+DgnCollisionData dgnCollisionBoxPoint(DgnBoundingBox box, Vec3 point);
+DgnCollisionData dgnCollisionBoxBox(DgnBoundingBox a, DgnBoundingBox b);
+DgnCollisionData dgnCollisionBoxSphere(DgnBoundingBox box, DgnBoundingSphere sphere);
+DgnCollisionData dgnCollisionSphereSphere(DgnBoundingSphere a, DgnBoundingSphere b);
+DgnCollisionData dgnCollisionSpherePoint(DgnBoundingSphere sphere, Vec3 point);
+
+Vec3 dgnCollisionBoxGetCenter(DgnBoundingBox box);
 
 /** ---------------- Camera Functions ---------------- **/
 
@@ -216,6 +230,9 @@ void dgnTextureDestroy(DgnTexture *texture);
 void dgnTextureSetWrap(DgnTexture *texture, uint8_t wrap_mode);
 void dgnTextureSetFilter(DgnTexture *texture, uint8_t filter_mode);
 void dgnTextureSetBorderColor(DgnTexture *texture, float r, float g, float b, float a);
+
+uint32_t dgnTextureGetWidth(DgnTexture *texture);
+uint32_t dgnTextureGetHeight(DgnTexture *texture);
 
 /** ---------------- FrameBuffer Functions ---------------- **/
 

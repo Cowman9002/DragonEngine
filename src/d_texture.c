@@ -224,3 +224,13 @@ void dgnTextureSetBorderColor(DgnTexture *texture, float r, float g, float b, fl
     glCall(glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, color));
     glCall(glBindTexture(GL_TEXTURE_2D, 0));
 }
+
+uint32_t dgnTextureGetWidth(DgnTexture *texture)
+{
+    return texture->width[0];
+}
+
+uint32_t dgnTextureGetHeight(DgnTexture *texture)
+{
+    return texture->height[0];
+}

@@ -3,7 +3,7 @@
 
 Mat4x4 dgnCameraGetProjection(DgnCamera cam)
 {
-    return m3dMat4x4InitPerspective(cam.width, cam.height, cam.fov, cam.near_plane, cam.far_plane);
+    return m3dMat4x4InitPerspective(cam.frustum.width, cam.frustum.height, cam.frustum.fov, cam.frustum.near, cam.frustum.far);
 }
 
 Mat4x4 dgnCameraGetView(DgnCamera cam)

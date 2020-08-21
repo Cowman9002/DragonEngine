@@ -1,9 +1,9 @@
 #version 330
 layout (location = 0) out vec3 fragColor;
 
-const int NUM_CASCADES = 3;
+econst int NUM_CASCADES;
+const float CASCADE_BLEND_DIST = 1.0;
 
-varying vec3 vNorm;
 varying vec2 vTexCoords;
 varying vec4 vLightFragPos[NUM_CASCADES];
 varying float vClipSpacePosZ;
@@ -33,14 +33,25 @@ vec2 randVec2();
 void main()
 {
 	float shadowMult = 1.0;
-	int cascade = NUM_CASCADES;
+	int cascade = 7;
 	
 	for (int i = 0 ; i < NUM_CASCADES ; i++)
 	{
+
         if (vClipSpacePosZ <= uCascadeEnd[i])
 		{
+			float distToCas = uCascadeEnd[i] - vClipSpacePosZ;
             shadowMult = getShadowMultiplier(i);
 			cascade = i;
+			if(distToCas < CASCADE_BLEND_DIST)
+			{
+				if(i + 1 >= NUM_CASCADES)
+				{
+					break;
+				}
+				shadowMult = mix(getShadowMultiplier(i + 1), shadowMult, distToCas / CASCADE_BLEND_DIST);
+			}
+			
             break;
         }
     }
@@ -67,9 +78,12 @@ float getShadowMultiplier(int cascade)
 	
 	float bias = 0.003;
 	
-	vec2 texelSize = 1.0 / textureSize(uShadowMap[cascade], 0);
+	float closestDepth = texture(uShadowMap[cascade], mapped.xy).r; 
+	light += currentDepth - bias > closestDepth ? 0.0 : 1.0;  
 	
-	/*for(int x = -1; x <= 1; ++x)
+	/*vec2 texelSize = 1.0 / textureSize(uShadowMap[cascade], 0);
+	
+	for(int x = -1; x <= 1; ++x)
 	{
 		for(int y = -1; y <= 1; ++y)
 		{
@@ -79,10 +93,12 @@ float getShadowMultiplier(int cascade)
 	}
 	light /= 9.0;*/
 	
+	/*float nearestDepth = texture2D(uShadowMap[cascade], mapped.xy).r; 
+	vec2 texelSize = 1.0 / textureSize(uShadowMap[cascade], 0);
 	int sample_size = 5;
-	float tile_size = 2;
+	float tile_size = pow(1.414314, abs(currentDepth - nearestDepth) * 10.0);
 	
-	seed = mapped.xy * mapped.z;
+	seed = vFragPos.xy * vFragPos.zx;
 	for(int i = 0; i < sample_size; i++)
 	{
 		for(int j = 0; j < sample_size; j++)
@@ -97,7 +113,7 @@ float getShadowMultiplier(int cascade)
 			light += currentDepth - bias > pcfDepth ? 0.0 : 1.0;  
 		}
 	}
-	light /= sample_size * sample_size;
+	light /= sample_size * sample_size;*/
 	
 	if(ls_pos.z > 1.0)
 	{	

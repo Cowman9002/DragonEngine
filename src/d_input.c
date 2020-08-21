@@ -1,7 +1,34 @@
 #include "d_internal.h"
 #include "DGNEngine/DGNEngine.h"
 
+#include "d_defines.h"
+
 #include <math.h>
+
+#include "c_linked_list.h"
+#include "c_ordered_map.h"
+
+typedef struct
+{
+    const char *axis;
+    uint16_t positive;
+    uint16_t negative;
+}KeyAxis;
+
+typedef struct
+{
+    const char *axis;
+    uint8_t positive;
+    uint8_t negative;
+}ButtonAxis;
+
+typedef struct
+{
+    const char *axis;
+    uint8_t gamepad;
+    uint8_t gp_axis_name;
+    float deadzone;
+}GamepadAxis;
 
 DgnInput *s_current_input;
 
@@ -43,17 +70,17 @@ uint8_t dgnInputGetKeyUp(uint16_t key)
     return !s_current_input->keys[key] && s_current_input->keys_l[key];
 }
 
-uint8_t dgnInputGetMouseButton(uint16_t button)
+uint8_t dgnInputGetMouseButton(uint8_t button)
 {
     return s_current_input->m_buttons[button];
 }
 
-uint8_t dgnInputGetMouseButtonDown(uint16_t button)
+uint8_t dgnInputGetMouseButtonDown(uint8_t button)
 {
     return s_current_input->m_buttons[button] && !s_current_input->m_buttons_l[button];
 }
 
-uint8_t dgnInputGetMouseButtonUp(uint16_t button)
+uint8_t dgnInputGetMouseButtonUp(uint8_t button)
 {
     return !s_current_input->m_buttons[button] && s_current_input->m_buttons_l[button];
 }
