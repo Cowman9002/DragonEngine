@@ -1,5 +1,8 @@
 #version 330
 
+#include res/std/shadow.glh
+#include res/std/lighting.glh
+
 layout (location = 0) out vec4 fragColor;
 
 econst int NUM_CASCADES;
@@ -14,8 +17,10 @@ varying float vClipSpacePosZ;
 uniform float uTime;
 
 uniform vec3 uColor = vec3(1.0);
-uniform vec3 uCamPos;
+uniform vec3 uCamPos;  
 uniform sampler2D uTexture;
+uniform sampler2D uToonMap;
+uniform sampler2D uToonMap2;
 uniform bool uHasTexture;
 uniform samplerCube uSkybox;
 uniform vec3 uLightDir = normalize(vec3(1.0));
@@ -33,12 +38,8 @@ uniform float uReflectShininess = 0.0;
 const float SpecFactor = 0.5;
 
 const float e = 2.71828182846;
-const float PI = 3.141592654;
 
 float getShadowMultiplier(int cascade, float NdotL);
-float rand(vec2 co);
-vec2 seed;
-vec2 randVec2();
 
 mat4x4 thresholdMatrix =
 {
@@ -58,11 +59,12 @@ void clip(float value)
 
 const float SCREEN_NEAR = 0.1;
 const float SCREEN_FAR = 0.3;
+const vec2 SHADOW_BIAS = vec2(0.003, 0.0008);
 
 void main()
 {
 	float alpha = 1.0;
-	vec3 albedo = pow(uColor, vec3(2.2));
+	vec3 albedo = (uColor, vec3(2.2));
 	
 	if(uHasTexture)
 	{
@@ -79,47 +81,47 @@ void main()
 	vec3 N = normalize(vNorm);
 	vec3 L = normalize(-uLightDir);
 	vec3 V = normalize(uCamPos - vFragPos);
-	vec3 H = normalize(L + V);
-
-	float NdotL = max(0.0, dot(N, L));
-	float specPow = max(0.0, dot(H, N));
-	specPow = pow(specPow, uShininess * 16);
 	
-	vec3 reflection = textureCube(uSkybox, reflect(-V, N), (1 - uReflectShininess) * 9).rgb;
-	reflection *= albedo * uMetalness;
-	
-	vec3 irrad = textureCube(uSkybox, N, 9).rgb;
-	
-	vec3 ambient = albedo * irrad * AmbFactor + reflection;
-	vec3 diffuse = albedo * (1.0 - uMetalness);
-	vec3 specular = specPow * mix(vec3(SpecFactor), albedo, uMetalness);
-
+	float shadow_samples = 6.0;
+	float shadow_tile = 0.6;
 	float shadowMult = 1.0;
 	for (int i = 0 ; i < NUM_CASCADES ; i++)
 	{
-
         if (vClipSpacePosZ <= uCascadeEnd[i])
 		{
 			float distToCas = uCascadeEnd[i] - vClipSpacePosZ;
-            shadowMult = getShadowMultiplier(i, NdotL);
+			
+			shadowMult = getShadowMultiplierRandomBlur(vLightFragPos[i], uShadowMap[i], dot(N, L), SHADOW_BIAS, shadow_samples - i, shadow_tile, vFragPos);
+			
 			float blendDist = CASCADE_BLEND_DIST * vClipSpacePosZ / 1.414214;
 			if(distToCas < blendDist)
 			{
-				shadowMult = mix(getShadowMultiplier(i + 1, NdotL), shadowMult, distToCas / blendDist);
+				if(i + 1 >= NUM_CASCADES)
+				{
+					shadowMult = mix(1.0f, shadowMult, distToCas / blendDist);
+				}
+				else
+				{
+					float border_shadow = getShadowMultiplierRandomBlur(vLightFragPos[i + 1], uShadowMap[i + 1], dot(N, L), SHADOW_BIAS, shadow_samples - i - 1, shadow_tile, vFragPos);
+					shadowMult = mix(border_shadow, shadowMult, distToCas / blendDist);
+				}
 			}
 			
             break;
         }
     }
+	
+	vec3 diffuse = toonDiffuse(N, L, uToonMap, albedo, Radiance);
+	vec3 specular = toonSpecular(N, L, V, 0.5, uToonMap2, Radiance);
+	vec3 ambient = AmbFactor * albedo; 
 
-	vec3 light = (diffuse + specular) * NdotL * Radiance;
-
+	vec3 light = diffuse + specular;
 	vec3 final = ambient + light * shadowMult;
 
 	fragColor = vec4(final, 1.0);
 }
 
-float getShadowMultiplier(int cascade, float NdotL)
+/*float getShadowMultiplier(int cascade, float NdotL)
 {
 	if(cascade >= NUM_CASCADES)
 	{
@@ -136,10 +138,10 @@ float getShadowMultiplier(int cascade, float NdotL)
 	
 	float light = 0.0;
 	
-	/*if(mapped.x > 1.0 || mapped.x < 0.0 || mapped.y > 1.0 || mapped.y < 0.0)
+	if(mapped.x > 1.0 || mapped.x < 0.0 || mapped.y > 1.0 || mapped.y < 0.0)
 	{
 		light = 0.0;
-	}*/
+	}
 	
 	float bias = max(0.005 * (1.0 - NdotL), 0.0008); 
 	//float bias = 0.003;
@@ -147,7 +149,7 @@ float getShadowMultiplier(int cascade, float NdotL)
 	//float closestDepth = texture(uShadowMap[cascade], mapped.xy).r; 
 	//light += currentDepth - bias > closestDepth ? 0.0 : 1.0;  
 	
-	/*vec2 texelSize = 1.0 / textureSize(uShadowMap[cascade], 0);
+	vec2 texelSize = 1.0 / textureSize(uShadowMap[cascade], 0);
 	
 	for(int x = -1; x <= 1; ++x)
 	{
@@ -157,7 +159,7 @@ float getShadowMultiplier(int cascade, float NdotL)
 			light += currentDepth - bias > pcfDepth ? 0.0 : 1.0;           
 		}    
 	}
-	light /= 9.0;*/
+	light /= 9.0;
 	
 	float nearestDepth = texture2D(uShadowMap[cascade], mapped.xy).r; 
 	vec2 texelSize = 1.0 / textureSize(uShadowMap[cascade], 0);
@@ -187,19 +189,4 @@ float getShadowMultiplier(int cascade, float NdotL)
 	}
 	
 	return light;
-}
-
-float rand(vec2 co)
-{
-    return (fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453) - 0.5) * 2.0;
-}
-
-vec2 randVec2()
-{
-    vec2 v;
-	v.x = rand(seed);
-	seed = vec2(v.x, seed.x);
-	v.y = rand(seed);
-	seed = vec2(v.y, v.x);
-	return v;
-}
+}*/

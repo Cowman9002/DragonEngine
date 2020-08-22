@@ -10,11 +10,16 @@ static uint8_t s_render_mode = DGN_DRAW_MODE_TRIANGLES;
 static uint32_t s_size_bound_mesh = 0;
 
 static DgnMesh *s_skybox_mesh = 0;
-static DgnShader *s_skybox_shader = 0;
 static DgnMesh *s_screen_mesh = 0;
+static DgnMesh *s_wire_cube_mesh = 0;
+static DgnMesh *s_line_mesh = 0;
+static DgnMesh *s_wire_sphere_mesh = 0;
 
 uint8_t genSkyboxMeshInternal();
 uint8_t genScreenMeshInternal();
+uint8_t genWireCubeMeshInternal();
+uint8_t genWireSphereMeshInternal();
+uint8_t genLineMeshInternal();
 
 uint8_t dgnRendererInitialize()
 {
@@ -25,6 +30,9 @@ uint8_t dgnRendererInitialize()
 
     ASSERT_RETURN(genSkyboxMeshInternal());
     ASSERT_RETURN(genScreenMeshInternal());
+    ASSERT_RETURN(genWireCubeMeshInternal());
+    ASSERT_RETURN(genWireSphereMeshInternal());
+    ASSERT_RETURN(genLineMeshInternal());
 
     ASSERT_RETURN(dgnShaderInit_internal());
 
@@ -34,7 +42,6 @@ uint8_t dgnRendererInitialize()
 void dgnRendererTerminate()
 {
     dgnMeshDestroy(s_skybox_mesh);
-    dgnShaderDestroy(s_skybox_shader);
 
     dgnShaderTerm_internal();
 }
@@ -96,25 +103,34 @@ void dgnRendererBindCubemap(DgnTexture *texture, uint8_t slot)
     bindTextureInternal(GL_TEXTURE_CUBE_MAP, texture, slot);
 }
 
+void dgnRendererBindWireCube()
+{
+    dgnRendererBindMesh(s_wire_cube_mesh);
+}
+
+void dgnRendererBindWireSphere()
+{
+    dgnRendererBindMesh(s_wire_sphere_mesh);
+}
+
+void dgnRendererBindLine()
+{
+    dgnRendererBindMesh(s_line_mesh);
+}
+
+void dgnRendererBindSkybox(DgnTexture *texture, DgnShader *shader, int32_t uniform_loc, Mat4x4 view_projection_mat)
+{
+    dgnRendererBindMesh(s_skybox_mesh);
+}
+
+void dgnRendererBindScreenTexture()
+{
+    dgnRendererBindMesh(s_screen_mesh);
+}
+
 void dgnRendererDrawMesh()
 {
     glCall(glDrawElements(s_render_mode, s_size_bound_mesh, GL_UNSIGNED_INT, NULL));
-}
-
-void dgnRendererDrawSkybox(DgnTexture *texture, DgnShader *shader, int32_t uniform_loc, Mat4x4 view_projection_mat)
-{
-    dgnRendererBindMesh(s_skybox_mesh);
-    dgnRendererDrawMesh();
-    dgnRendererBindMesh(0);
-}
-
-void dgnRendererDrawScreenTexture()
-{
-    dgnRendererBindMesh(s_screen_mesh);
-
-    dgnRendererDrawMesh();
-
-    dgnRendererBindMesh(0);
 }
 
 void dgnRendererSetDepthTest(uint16_t func)
@@ -130,6 +146,11 @@ void dgnRendererSetClearColor(float red, float green, float blue)
 void dgnRendererSetVsync(uint8_t sync)
 {
     glfwSwapInterval(sync);
+}
+
+void dgnRendererSetLineWidth(float value)
+{
+    glCall(glLineWidth(value));
 }
 
 void dgnRendererSetDrawMode(uint8_t mode)
@@ -250,3 +271,165 @@ uint8_t genScreenMeshInternal()
 
     return s_screen_mesh != NULL;
 }
+
+uint8_t genWireCubeMeshInternal()
+{
+    float verts[] =
+    {
+        -0.5f, -0.5f,  0.5f,
+        -0.5f,  0.5f,  0.5f,
+        -0.5f, -0.5f, -0.5f,
+        -0.5f,  0.5f, -0.5f,
+         0.5f, -0.5f,  0.5f,
+         0.5f,  0.5f,  0.5f,
+         0.5f, -0.5f, -0.5f,
+         0.5f,  0.5f, -0.5f
+    };
+
+    unsigned indices[] =
+    {
+        2, 0,
+        0, 1,
+        1, 3,
+        3, 2,
+        6, 2,
+        3, 7,
+        7, 6,
+        4, 6,
+        7, 5,
+        5, 4,
+        0, 4,
+        5, 1
+    };
+
+    s_wire_cube_mesh = dgnMeshCreate(verts, sizeof(verts), indices, sizeof(indices),
+                                       DGN_VERT_ATTRIB_POSITION);
+
+    return s_wire_cube_mesh != NULL;
+}
+
+uint8_t genWireSphereMeshInternal()
+{
+    float verts[] =
+    {
+         0.000000f,  0.707107f, -0.707107f,
+         0.000000f,  0.382683f, -0.923880f,
+         0.000000f, -0.382684f, -0.923880f,
+         0.000000f, -0.923880f, -0.382684f,
+         0.382684f, -0.000000f, -0.923880f,
+         0.707107f, -0.000000f, -0.707107f,
+         0.923880f, -0.000000f, -0.382684f,
+         0.382683f,  0.923879f, -0.000000f,
+         0.707107f,  0.707107f, -0.000000f,
+         0.923880f,  0.382683f, -0.000000f,
+         1.000000f, -0.000000f, -0.000000f,
+         0.923880f, -0.382684f, -0.000000f,
+         0.707107f, -0.707107f, -0.000000f,
+         0.382683f, -0.923880f, -0.000000f,
+         0.923880f, -0.000000f,  0.382683f,
+         0.707107f, -0.000000f,  0.707107f,
+         0.382683f, -0.000000f,  0.923879f,
+        -0.000000f,  0.923879f,  0.382683f,
+        -0.000000f,  0.707107f,  0.707106f,
+        -0.000000f,  0.382683f,  0.923879f,
+        -0.000000f, -0.000000f,  1.000000f,
+        -0.000000f, -0.382684f,  0.923879f,
+        -0.000000f, -0.707107f,  0.707106f,
+        -0.000000f, -0.923880f,  0.382683f,
+        -0.382684f, -0.000000f,  0.923879f,
+        -0.707107f, -0.000000f,  0.707106f,
+        -0.923880f, -0.000000f,  0.382683f,
+        -0.382683f,  0.923879f, -0.000000f,
+        -0.707107f,  0.707107f, -0.000001f,
+        -0.923880f,  0.382683f, -0.000001f,
+        -1.000000f, -0.000000f, -0.000001f,
+        -0.923880f, -0.382684f, -0.000001f,
+        -0.707107f, -0.707107f, -0.000001f,
+        -0.382683f, -0.923880f, -0.000001f,
+        -0.923879f, -0.000000f, -0.382684f,
+        -0.707106f, -0.000000f, -0.707107f,
+        -0.382683f, -0.000000f, -0.923880f,
+         0.000000f,  1.000000f, -0.000000f,
+         0.000000f,  0.923879f, -0.382684f,
+         0.000001f, -0.000000f, -1.000000f,
+         0.000000f, -0.707107f, -0.707107f,
+         0.000000f, -1.000000f, -0.000000f
+    };
+
+    unsigned indices[] =
+    {
+        0, 1,
+        5, 4,
+        5, 6,
+        7, 8,
+        8, 9,
+        9, 10,
+        10, 11,
+        11, 12,
+        12, 13,
+        10, 6,
+        14, 10,
+        14, 15,
+        15, 16,
+        17, 18,
+        18, 19,
+        19, 20,
+        20, 21,
+        21, 22,
+        22, 23,
+        20, 16,
+        24, 20,
+        24, 25,
+        25, 26,
+        27, 28,
+        28, 29,
+        29, 30,
+        30, 31,
+        31, 32,
+        32, 33,
+        30, 26,
+        34, 30,
+        34, 35,
+        36, 35,
+        37, 38,
+        39, 36,
+        38, 0,
+        1, 39,
+        39, 2,
+        2, 40,
+        40, 3,
+        3, 41,
+        4, 39,
+        37, 7,
+        13, 41,
+        37, 17,
+        23, 41,
+        37, 27,
+        33, 41
+    };
+
+    s_wire_sphere_mesh = dgnMeshCreate(verts, sizeof(verts), indices, sizeof(indices),
+                                       DGN_VERT_ATTRIB_POSITION);
+
+    return s_wire_sphere_mesh != NULL;
+}
+
+uint8_t genLineMeshInternal()
+{
+    float verts[] =
+    {
+        0.0f, 0.0f, 0.0f,
+        0.0f, 0.0f, 0.0f
+    };
+
+    unsigned indices[] =
+    {
+        0, 1
+    };
+
+    s_line_mesh = dgnMeshCreate(verts, sizeof(verts), indices, sizeof(indices),
+                                       DGN_VERT_ATTRIB_POSITION);
+
+    return s_line_mesh != NULL;
+}
+

@@ -143,7 +143,66 @@ DgnCollisionData dgnCollisionSpherePoint(DgnBoundingSphere sphere, Vec3 point)
     return res;
 }
 
+//https://gdbooks.gitbooks.io/3dcollisions/content/Chapter4/point_in_triangle.html
+DgnCollisionData dgnCollisionTrianglePoint(DgnTriangle tri, Vec3 point)
+{
+    DgnCollisionData res;
+    res.hit = DGN_FALSE;
+
+    // move triangle so point is triangle's origin
+    tri.p1 = m3dVec3SubVec3(tri.p1, point);
+    tri.p2 = m3dVec3SubVec3(tri.p2, point);
+    tri.p3 = m3dVec3SubVec3(tri.p3, point);
+
+    // u = normal of PBC
+    // v = normal of PCA
+    // w = normal of PAB
+
+    Vec3 u = m3dVec3Cross(tri.p2, tri.p3);
+    Vec3 v = m3dVec3Cross(tri.p3, tri.p1);
+    Vec3 w = m3dVec3Cross(tri.p1, tri.p2);
+
+    // Test to see if the normals are facing
+    // the same direction
+    if (m3dVec3Dot(u, v) < 0.0f)
+    {
+        res.hit = DGN_FALSE;
+    }
+    else if (m3dVec3Dot(u, w) < 0.0f)
+    {
+        res.hit = DGN_FALSE;
+    }
+    else
+    {
+        res.hit = DGN_TRUE;
+    }
+
+    return res;
+}
+
 Vec3 dgnCollisionBoxGetCenter(DgnBoundingBox box)
 {
     return m3dVec3DivValue(m3dVec3AddVec3(box.max, box.min), 2.0f);
+}
+
+Mat4x4 dgnCollisionBoxGetModel(DgnBoundingBox box)
+{
+    Mat4x4 pos_mat = m3dMat4x4InitIdentity();
+    Mat4x4 scale_mat = m3dMat4x4InitIdentity();
+
+    m3dMat4x4Translate(&pos_mat, dgnCollisionBoxGetCenter(box));
+    m3dMat4x4Scale(&scale_mat, m3dVec3SubVec3(box.max, box.min));
+
+    return m3dMat4x4MulMat4x4(pos_mat, scale_mat);
+}
+
+Mat4x4 dgnCollisionSphereGetModel(DgnBoundingSphere sphere)
+{
+    Mat4x4 pos_mat = m3dMat4x4InitIdentity();
+    Mat4x4 scale_mat = m3dMat4x4InitIdentity();
+
+    m3dMat4x4Translate(&pos_mat, sphere.center);
+    m3dMat4x4Scale(&scale_mat, (Vec3){sphere.radius, sphere.radius, sphere.radius});
+
+    return m3dMat4x4MulMat4x4(pos_mat, scale_mat);
 }

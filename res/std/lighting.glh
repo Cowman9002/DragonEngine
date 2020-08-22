@@ -1,0 +1,72 @@
+float PhongReflection(float shininess, vec3 normal, vec3 view, vec3 light)
+{
+	vec3 reflection = reflect(light, normal);
+	float alignment = max(0.0, dot(reflection, view));
+	
+	return pow(alignment, shininess);
+}
+
+float BlinnPhongReflection(float shininess, vec3 normal, vec3 view, vec3 light)
+{
+	vec3 half_vector = normalize(light + view);
+	float alignment = max(0.0, dot(half_vector, normal));
+	
+	return pow(alignment, shininess);
+}
+
+const float PI = 3.141592654;
+
+vec3 LambertDiffuse(vec3 normal, vec3 light, vec3 surfaceColor, vec3 lightColor)
+{
+	float NdotL = dot(normal, light);
+	NdotL = max(0.0, NdotL);
+	
+	return NdotL * lightColor * surfaceColor / PI;
+}
+
+vec3 OrenNayerDiffuse(float roughness, vec3 normal, vec3 light, vec3 view, vec3 surfaceColor, vec3 lightColor)
+{
+	float rough2 = roughness * roughness;
+
+	float NdotL = max(0.0, dot(normal, light));
+	float NdotV = max(0.00001, dot(normal, view));
+
+	vec2 orenNayer = rough2 / (rough2 + vec2(0.33, 0.09));
+	orenNayer = vec2(1.0, 0.0) + vec2(-0.5, 0.45) * orenNayer;
+	// Theta and phi
+	
+	float sin_theta = sqrt((1.0 - NdotL * NdotL) * (1.0 - NdotV * NdotV));
+	vec3 light_plane = normalize(light - NdotL * normal);
+	vec3 view_plane = normalize(view - NdotV * normal);
+	float cos_phi = max(0.0, dot(light_plane, view_plane));
+	// Composition
+	float diffuse_oren_nayar = cos_phi * sin_theta / max(NdotL, NdotV);
+	float diffuse = NdotL * (orenNayer.x + orenNayer.y * diffuse_oren_nayar);
+	
+	return (surfaceColor / PI) * diffuse * lightColor;
+}
+
+vec3 GoochShading(vec3 cool, vec3 warm, vec3 light, vec3 normal)
+{
+	float v = (1 + dot(light, normal)) / 2.0;
+	
+	return mix(cool, warm, v);
+}
+
+vec3 toonDiffuse(vec3 N, vec3 L, sampler2D toonMap, vec3 surfaceColor, vec3 lightColor)
+{
+	float NdotL = dot(N, L);
+	
+	float light = texture2D(toonMap, vec2(NdotL * 0.5 + 0.5, 0)).r;  
+	
+	return surfaceColor * light * lightColor;
+}
+
+vec3 toonSpecular(vec3 N, vec3 L, vec3 V, float glossy, sampler2D toonMap, vec3 lightColor)
+{
+	vec3 half_vector = normalize(L + V);
+	float alignment = dot(half_vector, N);
+	alignment = alignment * 0.5 + 0.5;
+	
+	return texture2D(toonMap, vec2(alignment - glossy, 0)).r * lightColor;
+}

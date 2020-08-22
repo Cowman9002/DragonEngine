@@ -37,6 +37,13 @@ typedef struct
 
 typedef struct
 {
+    Vec3 p1;
+    Vec3 p2;
+    Vec3 p3;
+}DgnTriangle;
+
+typedef struct
+{
     float fov;
     float near, far;
     float width, height;
@@ -116,14 +123,19 @@ void dgnRendererBindShader(DgnShader* shader);
 void dgnRendererBindTexture(DgnTexture *texture, uint8_t slot);
 void dgnRendererBindCubemap(DgnTexture *texture, uint8_t slot);
 
+void dgnRendererBindWireCube();
+void dgnRendererBindWireSphere();
+void dgnRendererBindLine();
+void dgnRendererBindSkybox();
+void dgnRendererBindScreenTexture();
+
 void dgnRendererDrawMesh();
-void dgnRendererDrawSkybox();
-void dgnRendererDrawScreenTexture();
 
 void dgnRendererSetDepthTest(uint16_t func);
 void dgnRendererSetClearColor(float red, float green, float blue);
 void dgnRendererSetVsync(uint8_t sync);
 void dgnRendererSetDrawMode(uint8_t mode);
+void dgnRendererSetLineWidth(float width);
 void dgnRendererSetViewport(uint16_t x, uint16_t y, uint16_t width, uint16_t height);
 void dgnRendererSetCullFace(uint8_t face);
 void dgnRendererSetWinding(uint8_t face);
@@ -150,16 +162,22 @@ Mat4x4 dgnLightingCreateLightProjMat(DgnCamera cam, DgnShadowMap shadow, DgnFrus
 
 DgnBoundingBox dgnCollisionGenerateBox(Vec3 *points, size_t points_count);
 DgnBoundingSphere dgnCollisionGenerateSphere(Vec3 *points, size_t points_count);
+DgnTriangle *dgnCollisionGenerateMesh(Vec3 *points, size_t points_count, size_t *out_count);
 
 DgnBoundingSphere dgnCollisionSphereFromBox(DgnBoundingBox box);
 
 DgnCollisionData dgnCollisionBoxPoint(DgnBoundingBox box, Vec3 point);
 DgnCollisionData dgnCollisionBoxBox(DgnBoundingBox a, DgnBoundingBox b);
 DgnCollisionData dgnCollisionBoxSphere(DgnBoundingBox box, DgnBoundingSphere sphere);
+
 DgnCollisionData dgnCollisionSphereSphere(DgnBoundingSphere a, DgnBoundingSphere b);
 DgnCollisionData dgnCollisionSpherePoint(DgnBoundingSphere sphere, Vec3 point);
 
+DgnCollisionData dgnCollisionTrianglePoint(DgnTriangle tri, Vec3 point);
+
 Vec3 dgnCollisionBoxGetCenter(DgnBoundingBox box);
+Mat4x4 dgnCollisionBoxGetModel(DgnBoundingBox box);
+Mat4x4 dgnCollisionSphereGetModel(DgnBoundingSphere sphere);
 
 /** ---------------- Camera Functions ---------------- **/
 
@@ -263,6 +281,7 @@ void dgnFramebufferBind(DgnFramebuffer *buffer);
 #define DGN_RENDER_FLAG_SCISSOR_TEST 0x0C11
 #define DGN_RENDER_FLAG_STENCIL_TEST 0x0B90
 #define DGN_RENDER_FLAG_SEAMLESS_CUBEMAP 0x884F
+#define DGN_RENDER_FLAG_LINE_SMOOTHING 0x0B20
 
 #define DGN_DEPTH_PASS_NEVER 0x0200
 #define DGN_DEPTH_PASS_LESS 0x0201

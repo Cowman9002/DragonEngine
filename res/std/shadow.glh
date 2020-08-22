@@ -1,0 +1,105 @@
+#include res/std/random.glh
+
+float getShadowMultiplierUnfiltered(vec4 lightFragPos, sampler2D shadowMap, float NdotL, vec2 bias_min_max)
+{
+	vec4 ls_pos = lightFragPos;
+	vec3 mapped = ls_pos.xyz / ls_pos.w;
+	
+	// convert to 0 - 1 space
+	mapped = mapped * 0.5 + 0.5;
+	
+	float currentDepth = mapped.z;
+	
+	float light = 0.0;
+	
+	float bias = max(bias_min_max.x * (1.0 - NdotL), bias_min_max.y); 
+	
+	float closestDepth = texture(shadowMap, mapped.xy).r; 
+	light += currentDepth - bias > closestDepth ? 0.0 : 1.0;  
+	
+	if(ls_pos.z > 1.0)
+	{	
+		light = 0.0;
+	}
+	
+	return light;
+}
+
+float getShadowMultiplierPCF(vec4 lightFragPos, sampler2D shadowMap, float NdotL, vec2 bias_min_max, int samples)
+{
+	vec4 ls_pos = lightFragPos;
+	vec3 mapped = ls_pos.xyz / ls_pos.w;
+	
+	// convert to 0 - 1 space
+	mapped = mapped * 0.5 + 0.5;
+	
+	float currentDepth = mapped.z;
+	
+	float light = 0.0;
+	
+	float bias = max(bias_min_max.x * (1.0 - NdotL), bias_min_max.y); 
+	
+	vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
+	
+	samples = samples > 0 ? samples : 1;
+	float half_samples = samples / 2.0 - 0.5;
+	
+	for(int x = 0; x < samples; ++x)
+	{
+		for(int y = 0; y < samples; ++y)
+		{
+			float pcfDepth = texture(shadowMap, mapped.xy + (vec2(x, y) - half_samples) * texelSize).r; 
+			light += currentDepth - bias > pcfDepth ? 0.0 : 1.0;           
+		}    
+	}
+	light /= samples * samples;	
+	if(ls_pos.z > 1.0)
+	{	
+		light = 1.0;
+	}
+	
+	return light;
+}
+
+float getShadowMultiplierRandomBlur(vec4 lightFragPos, sampler2D shadowMap, float NdotL, vec2 bias_min_max, float samples, float tile_size, vec3 seed_v)
+{
+	vec4 ls_pos = lightFragPos;
+	vec3 mapped = ls_pos.xyz / ls_pos.w;
+	
+	// convert to 0 - 1 space
+	mapped = mapped * 0.5 + 0.5;
+	
+	float currentDepth = mapped.z;
+	
+	float light = 0.0;
+	
+	float bias = max(bias_min_max.x * (1.0 - NdotL), bias_min_max.y); 
+	
+	vec2 texelSize = 1.0 / textureSize(shadowMap, 0);
+	float half_samples = samples / 2.0 - 0.5;
+	
+	seed = seed_v.xy * seed_v.zx;
+	for(int i = 0; i < samples; i++)
+	{
+		for(int j = 0; j < samples; j++)
+		{
+			vec2 offset = vec2(i, j);
+			//randomize points slightly
+			offset += abs(randVec2());
+			// center offset
+			offset -= half_samples;
+			offset *= tile_size;
+			
+			float pcfDepth = texture2D(shadowMap, mapped.xy + offset * texelSize).r; 
+			light += currentDepth - bias > pcfDepth ? 0.0 : 1.0;  
+		}
+	}
+	light /= samples * samples;
+	
+	if(ls_pos.z > 1.0)
+	{	
+		light = 0.0;
+	}
+	
+	return light;
+}

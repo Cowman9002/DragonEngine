@@ -25,6 +25,26 @@ static uint32_t genShaderInternal(char *data, uint16_t shader_type)
     {
         glGetShaderInfoLog(shader, 256, NULL, buff);
         logError("SHADER COMPILE STATUS", buff);
+
+        char line[256];
+        uint32_t line_number = 0;
+        uint32_t line_off = 0;
+        size_t data_len = strlen(data);
+        while(1)
+        {
+            char *line_start = data + line_off;
+            char *line_end = strchr(line_start, '\n');
+            memcpy(line, line_start, line_end - line_start);
+            line[line_end - line_start] = '\0';
+            line_off += line_end - line_start + 1;
+
+            logMessage("%i| %s\n", ++line_number, line);
+
+            if(line_off >= data_len)
+            {
+                break;
+            }
+        }
     }
     #endif // __DEBUG
 
@@ -92,7 +112,7 @@ uint32_t fileToString(char **out_str, const char *filepath)
 
     FILE *file = fopen(filepath, "r");
 
-    if(!file)
+    if(file == NULL)
     {
         logError("FILE LOADING", filepath);
         return FILE_LOAD_ERROR;
@@ -112,6 +132,7 @@ uint32_t fileToString(char **out_str, const char *filepath)
     char line[128];
     char line_cpy[128];
     size_t offset = 0;
+    size_t new_length = length;
 
      while(fgets(line, 128, file) != NULL)
     {
@@ -120,6 +141,7 @@ uint32_t fileToString(char **out_str, const char *filepath)
 
         if((token = strtok(line_cpy, " ")) != NULL)
         {
+            // adding external const values
             if(strcmp(token, "econst") == 0)
             {
                 char name[64];
@@ -145,7 +167,6 @@ uint32_t fileToString(char **out_str, const char *filepath)
                     logError("UNDEFINED SHADER ECONST", name);
                     return FILE_LOAD_ERROR;
                 }
-
 
                 size_t type_len = strlen(type);
                 size_t name_len = strlen(name);
@@ -179,6 +200,41 @@ uint32_t fileToString(char **out_str, const char *filepath)
                 }
 
                 memcpy(line + off, ";\n", 3);
+                new_length += strlen(line);
+                *out_str = realloc(*out_str, new_length);
+            }
+            else if(strcmp(token, "#include") == 0) // include files
+            {
+                char filepath[64];
+                char *file_s;
+
+                if((token = strtok(NULL, " ")) != NULL)
+                {
+                    strcpy(filepath, token);
+                    // remove trailing newline
+                    char *sc = strchr(token, '\n');
+                    if(sc != NULL)
+                    {
+                        filepath[sc - token] = '\0';
+                    }
+                }
+
+                uint32_t file_len = fileToString(&file_s, filepath);
+                if(file_len == FILE_LOAD_ERROR)
+                {
+                    logError("SHADER INCLUDE", filepath);
+                    return FILE_LOAD_ERROR;
+                }
+                file_len = strlen(file_s);
+                // resize resulting string to fit
+                new_length += file_len;
+                *out_str = realloc(*out_str, new_length);
+                // add file_s to the resulting string
+                memcpy((*out_str) + offset, file_s, file_len + 1);
+                offset += file_len;
+
+                free(file_s);
+                continue;
             }
         }
 
@@ -189,7 +245,7 @@ uint32_t fileToString(char **out_str, const char *filepath)
 
     fclose(file);
 
-    return length;
+    return strlen(*out_str);
 }
 
 DgnShader *dgnShaderLoad(const char* vertex_path, const char* geometry_path, const char* fragment_path)

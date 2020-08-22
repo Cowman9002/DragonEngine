@@ -19,6 +19,9 @@ void main()
 		//vec3 mapped = vec3(1.0) - exp(-finalColor * uContrast);
 		vec3 mapped = finalColor / (finalColor + vec3(1.0));
 		
+		//float gray = 0.2126 * mapped.r + 0.7152 * mapped.g + 0.0722 * mapped.b;
+		//mapped = vec3(gray);
+		
 		// gamma correction 
 		mapped = pow(mapped, vec3(1.0 / 2.2));
 	
