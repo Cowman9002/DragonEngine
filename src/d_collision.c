@@ -62,6 +62,14 @@ DgnBoundingSphere dgnCollisionGenerateSphere(Vec3 *points, size_t points_count)
     return res;
 }
 
+DgnPlane dgnCollisionGeneratePlane(Vec3 p1, Vec3 p2, Vec3 p3)
+{
+    DgnPlane res;
+    res.normal = m3dVec3Normalized(m3dVec3Cross(m3dVec3SubVec3(p2, p1), m3dVec3SubVec3(p3, p1)));
+    res.distance = m3dVec3Dot(res.normal, p1);
+    return res;
+}
+
 DgnBoundingSphere dgnCollisionSphereFromBox(DgnBoundingBox box)
 {
     DgnBoundingSphere res;
@@ -143,6 +151,36 @@ DgnCollisionData dgnCollisionSpherePoint(DgnBoundingSphere sphere, Vec3 point)
     return res;
 }
 
+DgnCollisionData dgnCollisionPlanePoint(DgnPlane plane, Vec3 point)
+{
+    DgnCollisionData res;
+    res.hit = DGN_FALSE;
+
+    float distance = dgnCollisionDistFromPlane(point, plane);
+
+    res.hit = abs(distance) < 0.001;
+
+    return res;
+}
+
+DgnCollisionData dgnCollisionLinePoint(DgnLine line, Vec3 point)
+{
+    DgnCollisionData res;
+    res.hit = DGN_FALSE;
+
+    float m = (line.p2.y - line.p1.y) / (line.p2.x - line.p1.x);
+    float b = line.p1.y - m * line.p1.x;
+
+    float pass = point.y - (m * point.x + b);
+
+    if (abs(pass) < 0.001f)
+    {
+        res.hit = DGN_TRUE;
+    }
+
+    return res;
+}
+
 //https://gdbooks.gitbooks.io/3dcollisions/content/Chapter4/point_in_triangle.html
 DgnCollisionData dgnCollisionTrianglePoint(DgnTriangle tri, Vec3 point)
 {
@@ -178,6 +216,91 @@ DgnCollisionData dgnCollisionTrianglePoint(DgnTriangle tri, Vec3 point)
     }
 
     return res;
+}
+
+DgnCollisionData dgnCollisionTriangleSphere(DgnTriangle tri, DgnBoundingSphere sphere)
+{
+    DgnCollisionData res;
+    res.hit = DGN_FALSE;
+
+    Vec3 nearest_point = dgnCollisionNearestPointTriangle(sphere.center, tri);
+
+    float dist = m3dVec3Distance(sphere.center, nearest_point);
+
+    res.hit = dist <= sphere.radius;
+
+    return res;
+}
+
+float dgnCollisionDistFromPlane(Vec3 point, DgnPlane plane)
+{
+    return m3dVec3Dot(point, plane.normal) - plane.distance;
+}
+
+Vec3 dgnCollisionNearestPointPlane(Vec3 point, DgnPlane plane)
+{
+    float dist = dgnCollisionDistFromPlane(point, plane);
+
+    return m3dVec3SubVec3(point, m3dVec3MulValue(plane.normal, dist));
+}
+
+Vec3 dgnCollisionNearestPointLine(Vec3 point, DgnLine line)
+{
+    Vec3 l = m3dVec3SubVec3(line.p2, line.p1);
+    Vec3 p = m3dVec3SubVec3(point, line.p1);
+    float d = m3dVec3Dot(l, p) / m3dVec3Dot(l, l);
+    d = m3d1DClamp(d, 0.0f, 1.0f);
+
+    return m3dVec3AddVec3(line.p1, m3dVec3MulValue(l, d));
+}
+
+Vec3 dgnCollisionNearestPointTriangle(Vec3 point, DgnTriangle tri)
+{
+    // convert to plane and find nearest point on plane
+    DgnPlane plane = dgnCollisionGeneratePlane(tri.p1, tri.p2, tri.p3);
+    Vec3 nearest_point = dgnCollisionNearestPointPlane(point, plane);
+    // check if point is inside plane, if so, return that point
+    if(dgnCollisionTrianglePoint(tri, nearest_point).hit)
+    {
+        return nearest_point;
+    }
+    // find the nearest point on each of the edges
+    DgnLine edge1;
+    DgnLine edge2;
+    DgnLine edge3;
+
+    edge1.p1 = tri.p1;
+    edge1.p2 = tri.p2;
+
+    edge2.p1 = tri.p1;
+    edge2.p2 = tri.p3;
+
+    edge3.p1 = tri.p2;
+    edge3.p2 = tri.p3;
+
+    Vec3 ep1 = dgnCollisionNearestPointLine(point, edge1);
+    Vec3 ep2 = dgnCollisionNearestPointLine(point, edge2);
+    Vec3 ep3 = dgnCollisionNearestPointLine(point, edge3);
+
+    // return the point with the smallest distance from point
+    float dist1 = m3dVec3LengthSqr(m3dVec3SubVec3(point, ep1));
+    float dist2 = m3dVec3LengthSqr(m3dVec3SubVec3(point, ep2));
+    float dist3 = m3dVec3LengthSqr(m3dVec3SubVec3(point, ep3));
+
+    float min_dist = fminf(fminf(dist1, dist2), dist3);
+
+    if(min_dist == dist1)
+    {
+        return ep1;
+    }
+    else if(min_dist == dist2)
+    {
+        return ep2;
+    }
+    else
+    {
+        return ep3;
+    }
 }
 
 Vec3 dgnCollisionBoxGetCenter(DgnBoundingBox box)

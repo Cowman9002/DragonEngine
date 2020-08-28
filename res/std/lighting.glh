@@ -1,4 +1,4 @@
-float PhongReflection(float shininess, vec3 normal, vec3 view, vec3 light)
+float PhongSpecular(float shininess, vec3 normal, vec3 view, vec3 light)
 {
 	vec3 reflection = reflect(light, normal);
 	float alignment = max(0.0, dot(reflection, view));
@@ -6,7 +6,7 @@ float PhongReflection(float shininess, vec3 normal, vec3 view, vec3 light)
 	return pow(alignment, shininess);
 }
 
-float BlinnPhongReflection(float shininess, vec3 normal, vec3 view, vec3 light)
+float BlinnPhongSpecular(float shininess, vec3 normal, vec3 view, vec3 light)
 {
 	vec3 half_vector = normalize(light + view);
 	float alignment = max(0.0, dot(half_vector, normal));

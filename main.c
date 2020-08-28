@@ -7,6 +7,8 @@
 
 #define ASSERT_RETURN(x) if(!(x)) return 1
 
+#define GAMEPAD_CONTROLS DGN_TRUE
+
 #define WINDOW_WIDTH 1000
 #define WINDOW_HEIGHT 680
 
@@ -99,8 +101,6 @@ int main(int argc, char* argv[])
     DgnTexture *skybox_texture = NULL;
     DgnTexture *checker_textures[4] = {NULL, NULL, NULL, NULL};
     DgnTexture *ball_texture = NULL;
-    DgnTexture *toon_map = NULL;
-    DgnTexture *toon_map2 = NULL;
 
     DgnShader *skybox_shader = NULL;
     DgnShader *lit_shader = NULL;
@@ -112,8 +112,8 @@ int main(int argc, char* argv[])
     dgnShaderSetEconstI("NUM_CASCADES", CASCADE_COUNT);
 
     ASSERT_RETURN(level_mesh = dgnMeshLoad("res/game/test_level_1.obj", &level_mesh_count));
-    //ASSERT_RETURN(ball_mesh = dgnMeshLoad("res/game/ball.obj", NULL));
-    ASSERT_RETURN(ball_mesh = dgnMeshLoad("res/monkey.obj", NULL));
+    ASSERT_RETURN(ball_mesh = dgnMeshLoad("res/game/ball.obj", NULL));
+    //ASSERT_RETURN(ball_mesh = dgnMeshLoad("res/monkey.obj", NULL));
 
     ASSERT_RETURN(skybox_texture = dgnCubemapLoad(skybox_locations, DGN_TEX_WRAP_REPEAT, DGN_TEX_FILTER_TRILINEAR, DGN_TEX_STORAGE_SRGB));
     ASSERT_RETURN(checker_textures[0] = dgnTextureLoad("res/game/checker1.png", DGN_TEX_WRAP_REPEAT, DGN_TEX_FILTER_TRILINEAR, DGN_TRUE, DGN_TEX_STORAGE_SRGB));
@@ -121,8 +121,6 @@ int main(int argc, char* argv[])
     ASSERT_RETURN(checker_textures[2] = dgnTextureLoad("res/game/checker3.png", DGN_TEX_WRAP_REPEAT, DGN_TEX_FILTER_TRILINEAR, DGN_TRUE, DGN_TEX_STORAGE_SRGB));
     ASSERT_RETURN(checker_textures[3] = dgnTextureLoad("res/game/checker4.png", DGN_TEX_WRAP_REPEAT, DGN_TEX_FILTER_TRILINEAR, DGN_TRUE, DGN_TEX_STORAGE_SRGB));
     ASSERT_RETURN(ball_texture = dgnTextureLoad("res/game/checker5.png", DGN_TEX_WRAP_REPEAT, DGN_TEX_FILTER_TRILINEAR, DGN_TRUE, DGN_TEX_STORAGE_SRGB));
-    ASSERT_RETURN(toon_map = dgnTextureLoad("res/game/toonMap1.png", DGN_TEX_WRAP_CLAMP_TO_EDGE, DGN_TEX_FILTER_BILINEAR, DGN_FALSE, DGN_TEX_STORAGE_RGB));
-    ASSERT_RETURN(toon_map2 = dgnTextureLoad("res/game/toonMap2.png", DGN_TEX_WRAP_CLAMP_TO_EDGE, DGN_TEX_FILTER_BILINEAR, DGN_FALSE, DGN_TEX_STORAGE_RGB));
 
     ASSERT_RETURN(skybox_shader = dgnShaderLoad("res/game/skybox.vert", 0, "res/game/skybox.frag"));
     //ASSERT_RETURN(lit_shader = dgnShaderLoad("res/game/shadow_viewer.vert", 0, "res/game/shadow_viewer.frag"));
@@ -139,8 +137,6 @@ int main(int argc, char* argv[])
     int lit_u_view = dgnShaderGetUniformLoc(lit_shader, "uView");
     int lit_u_projection = dgnShaderGetUniformLoc(lit_shader, "uProjection");
     int lit_u_texture = dgnShaderGetUniformLoc(lit_shader, "uTexture");
-    int lit_u_toon_map = dgnShaderGetUniformLoc(lit_shader, "uToonMap");
-    int lit_u_toon_map2 = dgnShaderGetUniformLoc(lit_shader, "uToonMap2");
     int lit_u_has_texture = dgnShaderGetUniformLoc(lit_shader, "uHasTexture");
     int lit_u_skybox = dgnShaderGetUniformLoc(lit_shader, "uSkybox");
     int lit_u_light_dir = dgnShaderGetUniformLoc(lit_shader, "uLightDir");
@@ -200,11 +196,7 @@ int main(int argc, char* argv[])
         if(dgnInputGetKeyDown(DGN_KEY_R))
         {
             dgnShaderDestroy(lit_shader);
-            dgnTextureDestroy(toon_map);
-            dgnTextureDestroy(toon_map2);
             lit_shader = dgnShaderLoad("res/game/lit.vert", 0, "res/game/lit.frag");
-            toon_map = dgnTextureLoad("res/game/toonMap1.png", DGN_TEX_WRAP_CLAMP_TO_EDGE, DGN_TEX_FILTER_BILINEAR, DGN_FALSE, DGN_TEX_STORAGE_RGB);
-            toon_map2 = dgnTextureLoad("res/game/toonMap2.png", DGN_TEX_WRAP_CLAMP_TO_EDGE, DGN_TEX_FILTER_BILINEAR, DGN_FALSE, DGN_TEX_STORAGE_RGB);
         }
 
 
@@ -222,9 +214,9 @@ int main(int argc, char* argv[])
         floor_bounds.min = (Vec3){-3.0f, -1.0f, -3.0f};
 
         DgnTriangle tri;
-        tri.p1 = (Vec3){-1.0f, 1.5f, 1.0f};
-        tri.p2 = (Vec3){0.0f, 1.5f, -1.0f};
-        tri.p3 = (Vec3){1.0f, 1.5f, 1.0f};
+        tri.p1 = (Vec3){-1.0f, 0.0f, 1.0f};
+        tri.p2 = (Vec3){0.0f, 0.0f, -1.0f};
+        tri.p3 = (Vec3){1.0f, 0.0f, 1.0f};
 
         if((dgnInputGetGamepadButton(DGN_GAMEPAD_1, DGN_GAMEPAD_BUTTON_CROSS) ||
             dgnInputGetKeyDown(DGN_KEY_SPACE)) && grounded)
@@ -241,28 +233,25 @@ int main(int argc, char* argv[])
             ball_velo.y = -31.0f;
         }
 
-        //Vec3 ball_t_pos = m3dVec3AddVec3(ball_pos, m3dVec3MulValue(ball_velo, dgnWindowGetDelta(window)));
-        //ball_bounds.center = ball_t_pos;
+        Vec3 ball_t_pos = m3dVec3AddVec3(ball_pos, m3dVec3MulValue(ball_velo, dgnWindowGetDelta(window)));
+        ball_bounds.center = ball_t_pos;
 
-        if(dgnCollisionBoxSphere(floor_bounds, ball_bounds).hit)
+        //if(dgnCollisionBoxSphere(floor_bounds, ball_bounds).hit)
+        if(dgnCollisionTriangleSphere(tri, ball_bounds).hit)
         {
-            //ball_t_pos = ball_pos;
+            ball_t_pos = ball_pos;
             ball_velo.y = 0.0f;
             grounded = DGN_TRUE;
         }
 
-        //ball_pos = ball_t_pos;
-
-        if(dgnCollisionTrianglePoint(tri, ball_pos).hit)
-        {
-            //printf("Hit\n");
-        }
+        ball_pos = ball_t_pos;
 
         m3dMat4x4Translate(&ball_transform, ball_pos);
 
         /** -------- Camera -------- **/
 
-        updateCamera(&camera, window, DGN_TRUE);
+        //updateCamera(&camera, window, DGN_TRUE);
+        updateCamera(&camera, window, GAMEPAD_CONTROLS);
         Mat4x4 vp_mat = m3dMat4x4MulMat4x4(dgnCameraGetProjection(camera),
                         m3dMat4x4FromMat3x3(m3dMat3x3FromMat4x4(dgnCameraGetView(camera))));
         //Mat4x4 vp_mat = dgnCameraGetProjection(camera);
@@ -337,15 +326,11 @@ int main(int argc, char* argv[])
 
         dgnRendererBindCubemap(skybox_texture, 15);
         dgnShaderUniformI(lit_u_skybox, 15);
-        dgnRendererBindTexture(toon_map, 16);
-        dgnShaderUniformI(lit_u_toon_map, 16);
-        dgnRendererBindTexture(toon_map2, 17);
-        dgnShaderUniformI(lit_u_toon_map2, 17);
 
         dgnShaderUniformM4x4(lit_u_model, m3dMat4x4InitIdentity());
         dgnShaderUniformB(lit_u_has_texture, DGN_TRUE);
         dgnShaderUniformI(lit_u_texture, 0);
-        dgnShaderUniformF(lit_u_specular, 5.0f);
+        dgnShaderUniformF(lit_u_specular, 7.0f);
         dgnShaderUniformF(lit_u_refl_shine, 0.1f);
         dgnShaderUniformF(lit_u_metalness, 0.0f);
         for(int i = 0; i < level_mesh_count; i++)
@@ -361,7 +346,7 @@ int main(int argc, char* argv[])
         dgnShaderUniformB(lit_u_has_texture, DGN_TRUE);
         dgnShaderUniformI(lit_u_texture, 0);
         dgnRendererBindTexture(ball_texture, 0);
-        dgnShaderUniformF(lit_u_specular, 5.0f);
+        dgnShaderUniformF(lit_u_specular, 10.0f);
         dgnShaderUniformF(lit_u_refl_shine, 0.2f);
         dgnShaderUniformF(lit_u_metalness, 0.0f);
 
@@ -387,38 +372,49 @@ int main(int argc, char* argv[])
         /*dgnRendererSetDepthTest(DGN_DEPTH_PASS_ALWAYS);
         dgnRendererSetDrawMode(DGN_DRAW_MODE_LINES);
         dgnRendererSetLineWidth(2.0f);
+        Mat4x4 wf_VP = m3dMat4x4MulMat4x4(dgnCameraGetProjection(camera), dgnCameraGetView(camera));
+
+        DgnLine line;
+        line.p1 = (Vec3){1.0f, 1.5f, 1.0f};
+        line.p2 = (Vec3){-1.0f, 0.0f, 1.0f};
+
+        if(dgnInputGetKey(DGN_KEY_N))
+        {
+            point.x -= dgnWindowGetDelta(window) * 0.5f;
+        }
+        if(dgnInputGetKey(DGN_KEY_M))
+        {
+            point.x += dgnWindowGetDelta(window) * 0.5f;
+        }
+
+        //point = {0.0f, 1.5f, 1.0f};
+
+        DgnBoundingSphere s;
+        s.radius = 0.01f;
 
         dgnRendererBindShader(color_shader);
         dgnShaderUniformV3(color_u_color, (Vec3){1.0f, 0.0f, 0.0f});
+        dgnRendererBindWireSphere();
 
-        Mat4x4 wf_VP = m3dMat4x4MulMat4x4(dgnCameraGetProjection(camera), dgnCameraGetView(camera));
-
-        dgnShaderUniformM4x4(color_u_mvp, m3dMat4x4MulMat4x4(wf_VP, dgnCollisionBoxGetModel(floor_bounds)));
-        dgnRendererBindWireCube();
+        s.center = point;
+        dgnShaderUniformM4x4(color_u_mvp, m3dMat4x4MulMat4x4(wf_VP, dgnCollisionSphereGetModel(s)));
         dgnRendererDrawMesh();
 
-        dgnShaderUniformM4x4(color_u_mvp, m3dMat4x4MulMat4x4(wf_VP, dgnCollisionSphereGetModel(ball_bounds)));
-        dgnRendererBindWireSphere();
+        dgnShaderUniformV3(color_u_color, (Vec3){0.0f, 1.0f, 0.0f});
+        s.center = point2;
+        dgnShaderUniformM4x4(color_u_mvp, m3dMat4x4MulMat4x4(wf_VP, dgnCollisionSphereGetModel(s)));
         dgnRendererDrawMesh();
 
         dgnRendererBindShader(line_shader);
-        dgnShaderUniformV3(line_u_color, (Vec3){1.0f, 0.0f, 0.0f});
+        dgnShaderUniformV3(line_u_color, (Vec3){1.0f, 1.0f, 0.0f});
         dgnShaderUniformM4x4(line_u_vp, wf_VP);
         dgnRendererBindLine();
 
-        dgnShaderUniformV3(line_u_pos1, tri.p1);
-        dgnShaderUniformV3(line_u_pos2, tri.p2);
-        dgnRendererDrawMesh();
+        dgnShaderUniformV3(line_u_pos1, line.p1);
+        dgnShaderUniformV3(line_u_pos2, line.p2);
+        dgnRendererDrawMesh();*/
 
-        dgnShaderUniformV3(line_u_pos1, tri.p2);
-        dgnShaderUniformV3(line_u_pos2, tri.p3);
-        dgnRendererDrawMesh();
-
-        dgnShaderUniformV3(line_u_pos1, tri.p3);
-        dgnShaderUniformV3(line_u_pos2, tri.p1);
-        dgnRendererDrawMesh();
-
-        dgnRendererSetDrawMode(DGN_DRAW_MODE_TRIANGLES);*/
+        dgnRendererSetDrawMode(DGN_DRAW_MODE_TRIANGLES);
 
         /** ---- Screen quad ---- **/
 
@@ -546,6 +542,8 @@ void updateCamera(DgnCamera *camera, DgnWindow *window, uint8_t controller)
                                     0.0f, 0.0f}));
     }
 }
+
+//TODO: Switch over to C++
 
 //TODO: triangle collision https://gdbooks.gitbooks.io/3dcollisions/content/Chapter4/closest_point_to_triangle.html
 //TODO: gamepad buttons getdown and getup functions

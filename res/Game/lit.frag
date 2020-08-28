@@ -27,7 +27,7 @@ uniform vec3 uLightDir = normalize(vec3(1.0));
 uniform sampler2D uShadowMap[NUM_CASCADES];
 uniform float uCascadeEnd[NUM_CASCADES];
 
-const vec3 Radiance = vec3(1.0);
+const vec3 Radiance = vec3(1.6, 1.4, 1.0);
 
 const vec3 AmbFactor = vec3(0.1);
 
@@ -111,82 +111,14 @@ void main()
         }
     }
 	
-	vec3 diffuse = toonDiffuse(N, L, uToonMap, albedo, Radiance);
-	vec3 specular = toonSpecular(N, L, V, 0.5, uToonMap2, Radiance);
-	vec3 ambient = AmbFactor * albedo; 
+	vec3 irradiance = textureCube(uSkybox, N, 8).rgb;
+	
+	vec3 diffuse = OrenNayerDiffuse(1.0 - uReflectShininess, N, L, V, albedo, Radiance);
+	vec3 specular = Radiance * SpecFactor * PhongSpecular(uShininess, N, V, -L);
+	vec3 ambient = albedo * irradiance * AmbFactor; 
 
 	vec3 light = diffuse + specular;
 	vec3 final = ambient + light * shadowMult;
 
 	fragColor = vec4(final, 1.0);
 }
-
-/*float getShadowMultiplier(int cascade, float NdotL)
-{
-	if(cascade >= NUM_CASCADES)
-	{
-		return 1.0;
-	}
-
-	vec4 ls_pos = vLightFragPos[cascade];
-	vec3 mapped = ls_pos.xyz / ls_pos.w;
-	
-	// convert to 0 - 1 space
-	mapped = mapped * 0.5 + 0.5;
-	
-	float currentDepth = mapped.z;
-	
-	float light = 0.0;
-	
-	if(mapped.x > 1.0 || mapped.x < 0.0 || mapped.y > 1.0 || mapped.y < 0.0)
-	{
-		light = 0.0;
-	}
-	
-	float bias = max(0.005 * (1.0 - NdotL), 0.0008); 
-	//float bias = 0.003;
-	
-	//float closestDepth = texture(uShadowMap[cascade], mapped.xy).r; 
-	//light += currentDepth - bias > closestDepth ? 0.0 : 1.0;  
-	
-	vec2 texelSize = 1.0 / textureSize(uShadowMap[cascade], 0);
-	
-	for(int x = -1; x <= 1; ++x)
-	{
-		for(int y = -1; y <= 1; ++y)
-		{
-			float pcfDepth = texture(uShadowMap[cascade], mapped.xy + vec2(x, y) * texelSize).r; 
-			light += currentDepth - bias > pcfDepth ? 0.0 : 1.0;           
-		}    
-	}
-	light /= 9.0;
-	
-	float nearestDepth = texture2D(uShadowMap[cascade], mapped.xy).r; 
-	vec2 texelSize = 1.0 / textureSize(uShadowMap[cascade], 0);
-	int sample_size = 4;
-	float tile_size = pow(1.414314, abs(currentDepth - nearestDepth) * 10.0);
-	
-	seed = vFragPos.xy * vFragPos.zx;
-	for(int i = 0; i < sample_size; i++)
-	{
-		for(int j = 0; j < sample_size; j++)
-		{
-			vec2 offset = tile_size * vec2(i, j);
-			//randomize points slightly
-			offset += randVec2() * tile_size;
-			// center offset
-			offset -= offset / 2.0;
-			
-			float pcfDepth = texture2D(uShadowMap[cascade], mapped.xy + offset * texelSize).r; 
-			light += currentDepth - bias > pcfDepth ? 0.0 : 1.0;  
-		}
-	}
-	light /= sample_size * sample_size;
-	
-	if(ls_pos.z > 1.0)
-	{	
-		light = 0.0;
-	}
-	
-	return light;
-}*/

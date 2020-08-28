@@ -37,6 +37,18 @@ typedef struct
 
 typedef struct
 {
+    Vec3 normal;
+    float distance;
+}DgnPlane;
+
+typedef struct
+{
+    Vec3 p1;
+    Vec3 p2;
+}DgnLine;
+
+typedef struct
+{
     Vec3 p1;
     Vec3 p2;
     Vec3 p3;
@@ -163,6 +175,7 @@ Mat4x4 dgnLightingCreateLightProjMat(DgnCamera cam, DgnShadowMap shadow, DgnFrus
 DgnBoundingBox dgnCollisionGenerateBox(Vec3 *points, size_t points_count);
 DgnBoundingSphere dgnCollisionGenerateSphere(Vec3 *points, size_t points_count);
 DgnTriangle *dgnCollisionGenerateMesh(Vec3 *points, size_t points_count, size_t *out_count);
+DgnPlane dgnCollisionGeneratePlane(Vec3 p1, Vec3 p2, Vec3 p3);
 
 DgnBoundingSphere dgnCollisionSphereFromBox(DgnBoundingBox box);
 
@@ -173,7 +186,17 @@ DgnCollisionData dgnCollisionBoxSphere(DgnBoundingBox box, DgnBoundingSphere sph
 DgnCollisionData dgnCollisionSphereSphere(DgnBoundingSphere a, DgnBoundingSphere b);
 DgnCollisionData dgnCollisionSpherePoint(DgnBoundingSphere sphere, Vec3 point);
 
+DgnCollisionData dgnCollisionPlanePoint(DgnPlane plane, Vec3 point);
+
+DgnCollisionData dgnCollisionLinePoint(DgnLine line, Vec3 point);
+
 DgnCollisionData dgnCollisionTrianglePoint(DgnTriangle tri, Vec3 point);
+DgnCollisionData dgnCollisionTriangleSphere(DgnTriangle tri, DgnBoundingSphere sphere);
+
+float dgnCollisionDistFromPlane(Vec3 point, DgnPlane plane);
+Vec3 dgnCollisionNearestPointPlane(Vec3 point, DgnPlane plane);
+Vec3 dgnCollisionNearestPointLine(Vec3 point, DgnLine line);
+Vec3 dgnCollisionNearestPointTriangle(Vec3 point, DgnTriangle tri);
 
 Vec3 dgnCollisionBoxGetCenter(DgnBoundingBox box);
 Mat4x4 dgnCollisionBoxGetModel(DgnBoundingBox box);
